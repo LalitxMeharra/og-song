@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎵 Song Downloader</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>">
+</head>
+<body>
+    <!-- Main Container -->
+    <div class="container">
+        <header>
+            <h1>🎵 Song Downloader</h1>
+            <p>Search and download your favorite songs</p>
+        </header>
+
+        <!-- Search Section -->
+        <div class="search-section">
+            <input type="text" id="searchInput" placeholder="Search for any song...">
+            <button id="searchBtn">🔍 Search</button>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div id="loading" class="loading" style="display:none;">
+            <div class="spinner"></div>
+            <p>Searching...</p>
+        </div>
+
+        <!-- Results Section -->
+        <div id="results" class="results"></div>
+
+        <!-- Audio Player (Hidden until play) -->
+        <div id="player" class="player" style="display:none;">
+            <div class="player-info">
+                <span id="nowPlaying">Now Playing</span>
+                <span id="closePlayer" class="close-player">✕</span>
+            </div>
+            <audio id="audioPlayer" controls></audio>
+        </div>
+
+        <footer>
+            <p>© 2026 | Built with ❤️</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+          </html>
