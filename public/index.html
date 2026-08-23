@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111827">
+  <title>Song Search</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main class="app">
+    <header>
+      <p class="eyebrow">SONG SEARCH</p>
+      <h1>Find songs & albums</h1>
+      <p class="sub">Search results are connected to the backend through <code>/api/search?q=...</code>.</p>
+    </header>
+
+    <form id="searchForm" class="search-box">
+      <input id="query" name="q" type="search" placeholder="Search a song or album..." autocomplete="off" required>
+      <button type="submit">Search</button>
+    </form>
+
+    <p id="status" class="status" aria-live="polite">Type a song name and search.</p>
+    <section id="results" class="results" aria-live="polite"></section>
+  </main>
+  <script src="/script.js" defer></script>
+</body>
+</html>
