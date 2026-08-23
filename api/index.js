@@ -34,6 +34,39 @@ function decryptUrl(encryptedUrl) {
     }
 }
 
+async function getMediaStreamUrl(songId, quality = '320') {
+    const detailRes = await axios.get('https://www.jiosaavn.com/api.php', {
+        params: {
+            __call: 'song.getDetails',
+            cc: 'in',
+            _marker: 0,
+            _format: 'json',
+            pids: songId
+        },
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36'
+        },
+        timeout: 10000
+    });
+
+    const songData = detailRes.data?.[songId] || {};
+    const encryptedUrl = songData.encrypted_media_url || songData.more_info?.encrypted_media_url;
+
+    if (!encryptedUrl) return null;
+
+    const baseUrl = decryptUrl(encryptedUrl);
+    if (!baseUrl) return null;
+
+    const basePrefix = baseUrl.substring(0, baseUrl.lastIndexOf('_'));
+    const ext = baseUrl.includes('.mp3') ? 'mp3' : 'mp4';
+    
+    return {
+        url: `${basePrefix}_${quality}.${ext}`,
+        title: (songData.song || songData.title || 'song').replace(/[^a-zA-Z0-9_\- ]/g, ''),
+        ext: ext
+    };
+}
+
 module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -56,6 +89,9 @@ module.exports = async (req, res) => {
                     includeMetaTags: 1,
                     query: query
                 },
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36'
+                },
                 timeout: 10000
             });
 
@@ -66,7 +102,6 @@ module.exports = async (req, res) => {
                 artist: (song.more_info?.primary_artists || song.primary_artists || 'Unknown').replace(/&quot;/g, '"').replace(/&#039;/g, "'"),
                 album: (song.album || 'Unknown').replace(/&quot;/g, '"').replace(/&#039;/g, "'"),
                 image: (song.image || '').replace('50x50', '500x500'),
-                vlink: song.more_info?.vlink || null,
                 duration: song.duration || '0'
             }));
 
@@ -76,44 +111,25 @@ module.exports = async (req, res) => {
         }
     } 
     
-    else if (path.includes('/download')) {
+    else if (path.includes('/stream') || path.includes('/download')) {
         if (!songId) return res.status(400).json({ error: 'songId required' });
 
         try {
-            const detailRes = await axios.get('https://www.jiosaavn.com/api.php', {
-                params: {
-                    __call: 'song.getDetails',
-                    cc: 'in',
-                    _marker: 0,
-                    _format: 'json',
-                    pids: songId
-                },
-                timeout: 10000
-            });
-
-            const songData = detailRes.data?.[songId] || {};
-            const encryptedUrl = songData.encrypted_media_url || songData.more_info?.encrypted_media_url;
-
-            if (!encryptedUrl) return res.status(404).json({ error: 'Encrypted URL not found' });
-
-            const baseUrl = decryptUrl(encryptedUrl);
-            if (!baseUrl) return res.status(500).json({ error: 'Decryption failed' });
-
-            const basePrefix = baseUrl.substring(0, baseUrl.lastIndexOf('_'));
-            const ext = baseUrl.includes('.mp3') ? 'mp3' : 'mp4';
-            const downloadUrl = `${basePrefix}_${quality}.${ext}`;
+            const media = await getMediaStreamUrl(songId, quality);
+            if (!media) return res.status(404).json({ error: 'Song media stream not found' });
 
             const fileStream = await axios({
                 method: 'get',
-                url: downloadUrl,
+                url: media.url,
                 responseType: 'stream',
                 timeout: 30000
             });
 
-            const songTitle = (songData.song || songData.title || 'song').replace(/[^a-zA-Z0-9_\- ]/g, '');
-            const filename = `${songTitle}_${quality}kbps.${ext}`;
+            if (path.includes('/download')) {
+                const filename = `${media.title}_${quality}kbps.${media.ext}`;
+                res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+            }
 
-            res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
             res.setHeader('Content-Type', fileStream.headers['content-type'] || 'audio/mp4');
             return fileStream.data.pipe(res);
         } catch (error) {
