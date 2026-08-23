@@ -47,7 +47,7 @@ function renderResults(songs) {
                 <div class="artist">${song.artist} · ${song.album}</div>
             </div>
             <div class="actions">
-                <button class="btn-play" onclick="playSong('${song.vlink}', '${song.title.replace(/'/g, "\\'")}')">▶️ Play</button>
+                <button class="btn-play" onclick="playSong('${song.id}', '${song.title.replace(/'/g, "\\'")}')">▶️ Play</button>
                 <button class="btn-download" onclick="downloadSong('${song.id}', '320')">320k</button>
                 <button class="btn-download" onclick="downloadSong('${song.id}', '160')">160k</button>
                 <button class="btn-download" onclick="downloadSong('${song.id}', '96')">96k</button>
@@ -56,12 +56,8 @@ function renderResults(songs) {
     `).join('');
 }
 
-function playSong(vlink, title) {
-    if (!vlink) {
-        alert('Preview not available for this track.');
-        return;
-    }
-    audioPlayer.src = vlink;
+function playSong(songId, title) {
+    audioPlayer.src = `${API_URL}/stream?songId=${songId}&quality=96`;
     audioPlayer.play();
     nowPlaying.textContent = `▶️ Playing: ${title}`;
     playerDiv.style.display = 'block';
