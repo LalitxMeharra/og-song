@@ -31,7 +31,7 @@ async function performSearch() {
     resultsDiv.innerHTML = '';
 
     try {
-        const res = await fetch(`${API_URL}/search?query=${encodeURIComponent(query)}`);
+        const res = await fetch(`${API_URL}?action=search&query=${encodeURIComponent(query)}`);
         const data = await res.json();
 
         if (!data.success || data.results.length === 0) {
@@ -82,7 +82,7 @@ function playSong(songId, vlink, title, artist) {
 // Download Song
 async function downloadSong(songId, quality) {
     try {
-        const res = await fetch(`${API_URL}/download?songId=${songId}&quality=${quality}`);
+        const res = await fetch(`${API_URL}?action=download&songId=${encodeURIComponent(songId)}&quality=${encodeURIComponent(quality)}`);
         if (!res.ok) {
             const error = await res.json();
             alert(`Download failed: ${error.error || 'Unknown error'}`);
