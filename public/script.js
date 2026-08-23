@@ -1,5 +1,13 @@
+// ============================================
+// JioSaavn Downloader - Frontend Logic
+// ============================================
+
 const API_URL = '/api';
 
+let currentSongId = null;
+let currentVlink = null;
+
+// DOM Elements
 const searchInput = document.getElementById('searchInput');
 const searchBtn = document.getElementById('searchBtn');
 const resultsDiv = document.getElementById('results');
@@ -9,6 +17,7 @@ const audioPlayer = document.getElementById('audioPlayer');
 const nowPlaying = document.getElementById('nowPlaying');
 const closePlayer = document.getElementById('closePlayer');
 
+// Search
 searchBtn.addEventListener('click', performSearch);
 searchInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') performSearch();
@@ -25,14 +34,14 @@ async function performSearch() {
         const res = await fetch(`${API_URL}/search?query=${encodeURIComponent(query)}`);
         const data = await res.json();
 
-        if (!data.success || !data.results || data.results.length === 0) {
-            resultsDiv.innerHTML = `<p style="text-align:center; padding:20px; color:#ff8888;">❌ Koi gaana nahi mila "${query}" ke liye</p>`;
+        if (!data.success || data.results.length === 0) {
+            resultsDiv.innerHTML = `<p class="no-results">❌ No songs found for "${query}"</p>`;
             return;
         }
 
         renderResults(data.results);
     } catch (error) {
-        resultsDiv.innerHTML = `<p style="text-align:center; padding:20px; color:#ff8888;">❌ Search Error: ${error.message}</p>`;
+        resultsDiv.innerHTML = `<p class="no-results">❌ Error: ${error.message}</p>`;
     } finally {
         loadingDiv.style.display = 'none';
     }
@@ -40,75 +49,72 @@ async function performSearch() {
 
 function renderResults(songs) {
     resultsDiv.innerHTML = songs.map(song => `
-        <div class="result-card">
+        <div class="result-card" data-id="${song.id}">
             <img src="${song.image || 'https://c.saavncdn.com/default.jpg'}" alt="${song.title}">
             <div class="info">
                 <div class="title">${song.title}</div>
                 <div class="artist">${song.artist} · ${song.album}</div>
+                <div class="duration">${song.duration || '0:00'}</div>
             </div>
             <div class="actions">
-                <button class="btn-play" onclick="playAudio('${song.id}')">▶️ Play</button>
-                <button class="btn-download" onclick="downloadAudio('${song.id}', '320')">320k</button>
-                <button class="btn-download" onclick="downloadAudio('${song.id}', '160')">160k</button>
-                <button class="btn-download" onclick="downloadAudio('${song.id}', '96')">96k</button>
+                <button class="btn-play" onclick="playSong('${song.id}', '${song.vlink}', '${song.title}', '${song.artist}')">▶️</button>
+                <button class="btn-download" onclick="downloadSong('${song.id}', '320')">320</button>
+                <button class="btn-download" onclick="downloadSong('${song.id}', '160')">160</button>
+                <button class="btn-download" onclick="downloadSong('${song.id}', '96')">96</button>
             </div>
         </div>
     `).join('');
 }
 
-async function fetchSongDetails(songId) {
-    const res = await fetch(`${API_URL}/details?songId=${songId}`);
-    const data = await res.json();
-    if (!data.success) {
-        throw new Error(data.error || 'Failed to get song links');
+// Play Song
+function playSong(songId, vlink, title, artist) {
+    if (!vlink) {
+        alert('Preview not available for this song');
+        return;
     }
-    return data;
+    currentVlink = vlink;
+    audioPlayer.src = vlink;
+    audioPlayer.play();
+    nowPlaying.textContent = `▶️ ${title} - ${artist}`;
+    playerDiv.style.display = 'block';
 }
 
-async function playAudio(songId) {
+// Download Song
+async function downloadSong(songId, quality) {
     try {
-        nowPlaying.textContent = `⏳ Loading track...`;
-        playerDiv.style.display = 'block';
+        const res = await fetch(`${API_URL}/download?songId=${songId}&quality=${quality}`);
+        if (!res.ok) {
+            const error = await res.json();
+            alert(`Download failed: ${error.error || 'Unknown error'}`);
+            return;
+        }
 
-        const data = await fetchSongDetails(songId);
-        const streamUrl = data.links['96'] || data.links['160'];
-
-        audioPlayer.src = streamUrl;
-        audioPlayer.play();
-        nowPlaying.textContent = `▶️ ${data.title} - ${data.artist}`;
-    } catch (e) {
-        alert(`Play error: ${e.message}`);
-        playerDiv.style.display = 'none';
-    }
-}
-
-async function downloadAudio(songId, quality) {
-    try {
-        const data = await fetchSongDetails(songId);
-        const fileUrl = data.links[quality];
-        const safeTitle = data.title.replace(/[^a-zA-Z0-9_-]/g, '_');
-        const filename = `${safeTitle}_${quality}kbps.mp4`;
-
-        // Direct fetch & download trigger (prevents black screen player)
-        const response = await fetch(fileUrl);
-        const blob = await response.blob();
-        const blobUrl = window.URL.createObjectURL(blob);
-
+        // Create download link (hidden)
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = blobUrl;
-        a.download = filename;
+        a.href = url;
+        a.download = res.headers.get('content-disposition')?.split('filename="')[1]?.replace('"', '') || `song_${quality}.mp4`;
         document.body.appendChild(a);
         a.click();
-
-        window.URL.revokeObjectURL(blobUrl);
         document.body.removeChild(a);
-    } catch (e) {
-        alert(`Download error: ${e.message}`);
+        URL.revokeObjectURL(url);
+    } catch (error) {
+        alert(`Download error: ${error.message}`);
     }
 }
 
+// Close Player
 closePlayer.addEventListener('click', () => {
     audioPlayer.pause();
     playerDiv.style.display = 'none';
+});
+
+// Clear search with Escape key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        searchInput.value = '';
+        resultsDiv.innerHTML = '';
+        loadingDiv.style.display = 'none';
+    }
 });
