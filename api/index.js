@@ -48,54 +48,82 @@ module.exports = async (req, res) => {
         'Referer': 'https://www.jiosaavn.com/'
     };
 
-    // SEARCH ENDPOINT
+    // 1. SEARCH ENDPOINT (Uses autocomplete.get)
     if (path.includes('/search')) {
-        if (!query) return res.status(400).json({ error: 'Query required' });
+        if (!query) return res.status(400).json({ error: 'Query parameter is required' });
 
         try {
             const apiRes = await axios.get('https://www.jiosaavn.com/api.php', {
                 params: {
-                    __call: 'search.getResults',
+                    __call: 'autocomplete.get',
                     _format: 'json',
                     _marker: '0',
                     cc: 'in',
-                    n: 15,
-                    p: 1,
-                    q: query
+                    includeMetaTags: '1',
+                    query: query
                 },
                 headers,
                 timeout: 10000
             });
 
-            const rawData = apiRes.data?.results || [];
-            const results = [];
-
-            for (const item of rawData) {
-                const encryptedUrl = item.encrypted_media_url || item.more_info?.encrypted_media_url;
-                if (!encryptedUrl) continue;
-
-                const decryptedUrl = decryptUrl(encryptedUrl);
-                if (!decryptedUrl) continue;
-
-                const basePrefix = decryptedUrl.substring(0, decryptedUrl.lastIndexOf('_'));
-                const ext = decryptedUrl.includes('.mp3') ? 'mp3' : 'mp4';
-
-                results.push({
-                    id: item.id,
-                    title: (item.song || item.title || 'Unknown').replace(/&quot;/g, '"').replace(/&#039;/g, "'").replace(/&amp;/g, '&'),
-                    artist: (item.primary_artists || item.more_info?.primary_artists || 'Unknown').replace(/&quot;/g, '"').replace(/&#039;/g, "'"),
-                    album: (item.album || item.more_info?.album || 'Single').replace(/&quot;/g, '"').replace(/&#039;/g, "'"),
-                    image: (item.image || '').replace('50x50', '500x500').replace('150x150', '500x500'),
-                    duration: item.duration || item.more_info?.duration || '0',
-                    media_url: {
-                        '320': `${basePrefix}_320.${ext}`,
-                        '160': `${basePrefix}_160.${ext}`,
-                        '96': `${basePrefix}_96.${ext}`
-                    }
-                });
-            }
+            const songs = apiRes.data?.songs?.data || [];
+            const results = songs.map(item => ({
+                id: item.id,
+                title: (item.title || 'Unknown').replace(/&quot;/g, '"').replace(/&#039;/g, "'").replace(/&amp;/g, '&'),
+                artist: (item.more_info?.primary_artists || item.primary_artists || item.description || 'Unknown').replace(/&quot;/g, '"').replace(/&#039;/g, "'"),
+                album: (item.album || item.more_info?.album || 'Single').replace(/&quot;/g, '"').replace(/&#039;/g, "'"),
+                image: (item.image || '').replace('50x50', '500x500')
+            }));
 
             return res.json({ success: true, results });
+        } catch (error) {
+            return res.status(500).json({ success: false, error: error.message });
+        }
+    }
+
+    // 2. GET SONG LINKS & DETAILS ENDPOINT (Uses song.getDetails with pid)
+    else if (path.includes('/details')) {
+        if (!songId) return res.status(400).json({ error: 'songId required' });
+
+        try {
+            const detailRes = await axios.get('https://www.jiosaavn.com/api.php', {
+                params: {
+                    __call: 'song.getDetails',
+                    cc: 'in',
+                    _marker: '0',
+                    _format: 'json',
+                    pids: songId
+                },
+                headers,
+                timeout: 10000
+            });
+
+            const songData = detailRes.data?.[songId] || {};
+            const encryptedUrl = songData.encrypted_media_url || songData.more_info?.encrypted_media_url;
+
+            if (!encryptedUrl) {
+                return res.status(404).json({ success: false, error: 'Encrypted URL not found' });
+            }
+
+            const decryptedUrl = decryptUrl(encryptedUrl);
+            if (!decryptedUrl) {
+                return res.status(500).json({ success: false, error: 'Decryption failed' });
+            }
+
+            const basePrefix = decryptedUrl.substring(0, decryptedUrl.lastIndexOf('_'));
+            const ext = decryptedUrl.includes('.mp3') ? 'mp3' : 'mp4';
+
+            return res.json({
+                success: true,
+                title: (songData.song || songData.title || 'Unknown').replace(/&quot;/g, '"').replace(/&#039;/g, "'"),
+                artist: (songData.primary_artists || 'Unknown').replace(/&quot;/g, '"').replace(/&#039;/g, "'"),
+                album: (songData.album || 'Unknown').replace(/&quot;/g, '"').replace(/&#039;/g, "'"),
+                links: {
+                    '320': `${basePrefix}_320.${ext}`,
+                    '160': `${basePrefix}_160.${ext}`,
+                    '96': `${basePrefix}_96.${ext}`
+                }
+            });
         } catch (error) {
             return res.status(500).json({ success: false, error: error.message });
         }
