@@ -1,7 +1,11 @@
-import https from 'https';
-import http from 'http';
+import { Readable } from 'stream';
 
-// Lightweight pure-JS DES-ECB Engine
+export const config = {
+  api: {
+    responseLimit: false,
+  },
+};
+
 const DES_KEY_STRING = '38346591';
 
 function desDecipher(encryptedBytes, keyBytes) {
@@ -94,9 +98,7 @@ function desDecipher(encryptedBytes, keyBytes) {
   function bytesToBits(bytes) {
     const bits = [];
     for (let i = 0; i < bytes.length; i++) {
-      for (let j = 7; j >= 0; j--) {
-        bits.push((bytes[i] >> j) & 1);
-      }
+      for (let j = 7; j >= 0; j--) bits.push((bytes[i] >> j) & 1);
     }
     return bits;
   }
@@ -105,9 +107,7 @@ function desDecipher(encryptedBytes, keyBytes) {
     const bytes = [];
     for (let i = 0; i < bits.length; i += 8) {
       let b = 0;
-      for (let j = 0; j < 8; j++) {
-        b = (b << 1) | bits[i + j];
-      }
+      for (let j = 0; j < 8; j++) b = (b << 1) | bits[i + j];
       bytes.push(b);
     }
     return bytes;
@@ -147,9 +147,7 @@ function desDecipher(encryptedBytes, keyBytes) {
         const row = (chunk[0] << 1) | chunk[5];
         const col = (chunk[1] << 3) | (chunk[2] << 2) | (chunk[3] << 1) | chunk[4];
         const val = S_BOXES[s][row][col];
-        for (let j = 3; j >= 0; j--) {
-          sOutput.push((val >> j) & 1);
-        }
+        for (let j = 3; j >= 0; j--) sOutput.push((val >> j) & 1);
       }
       const fVal = permute(sOutput, P);
       const newR = L.map((b, idx) => b ^ fVal[idx]);
@@ -208,88 +206,77 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const { q, pid, song_pids, songId, action, url: downloadUrl, filename } = req.query;
+  const { action, q, pid, id, url: downloadUrl, filename, quality } = req.query;
 
   const headers = {
-    'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+    'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36',
     'Referer': 'https://www.jiosaavn.com/'
   };
 
-  // 1. STREAMING PROXY DOWNLOAD PIPELINE
-  if (action === 'download' && downloadUrl) {
-    return new Promise((resolve) => {
-      const client = downloadUrl.startsWith('https') ? https : http;
-      
-      const safeFilename = (filename || 'song.mp4').replace(/[^a-zA-Z0-9._-]/g, '_');
-      
-      client.get(downloadUrl, { headers }, (streamRes) => {
-        if (streamRes.statusCode !== 200) {
-          res.status(streamRes.statusCode).end();
-          return resolve();
-        }
+  // 1. STREAMING PROXY DOWNLOAD (CLAUDE PATTERN WITH ZERO MEMORY BUFFER)
+  if (action === 'download') {
+    if (!downloadUrl) return res.status(400).json({ error: 'Missing url parameter' });
 
-        res.setHeader('Content-Type', 'audio/mp4');
-        res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
-        if (streamRes.headers['content-length']) {
-          res.setHeader('Content-Length', streamRes.headers['content-length']);
-        }
+    let cdnUrl;
+    try {
+      cdnUrl = decodeURIComponent(downloadUrl);
+      new URL(cdnUrl);
+    } catch {
+      return res.status(400).json({ error: 'Invalid url' });
+    }
 
-        streamRes.pipe(res);
-        streamRes.on('end', () => resolve());
-        streamRes.on('error', () => {
-          res.status(500).end();
-          resolve();
-        });
-      }).on('error', (err) => {
-        res.status(500).json({ error: err.message });
-        resolve();
+    const safeBase = (filename || 'song').replace(/[^\w\s.-]/g, '').trim() || 'song';
+    const finalName = `${safeBase}_${quality || '320kbps'}.mp4`;
+
+    try {
+      const upstream = await fetch(cdnUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0', Accept: '*/*' }
       });
-    });
+
+      if (!upstream.ok || !upstream.body) {
+        return res.status(502).json({ error: 'Upstream stream failed' });
+      }
+
+      const contentType = upstream.headers.get('content-type') || 'audio/mp4';
+      const contentLength = upstream.headers.get('content-length');
+
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Disposition', `attachment; filename="${finalName}"`);
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      if (contentLength) res.setHeader('Content-Length', contentLength);
+
+      const nodeStream = Readable.fromWeb(upstream.body);
+      nodeStream.on('error', () => { if (!res.headersSent) res.status(500).end(); });
+      req.on('close', () => { if (!res.writableEnded) nodeStream.destroy(); });
+
+      return nodeStream.pipe(res);
+    } catch (err) {
+      if (!res.headersSent) res.status(500).json({ error: 'Stream error: ' + err.message });
+      return;
+    }
   }
 
   // 2. DETAILS & STREAM/DOWNLOAD LINKS
-  if (pid || song_pids || songId || action === 'details') {
-    let targetPid = String(pid || song_pids || songId || '').trim();
+  if (action === 'details' || pid || id) {
+    let targetPid = String(pid || id || '').trim();
     if (targetPid.includes(',')) targetPid = targetPid.split(',')[0].trim();
-
-    if (!targetPid) return res.status(400).json({ error: 'Valid Song PID required' });
 
     try {
       const response = await fetch(`https://www.jiosaavn.com/api.php?__call=song.getDetails&cc=in&_marker=0&_format=json&pids=${encodeURIComponent(targetPid)}`, { headers });
-      const rawText = await response.text();
-
-      let data;
-      try {
-        data = JSON.parse(rawText);
-      } catch (err) {
-        const jsonStart = rawText.indexOf('{');
-        const jsonEnd = rawText.lastIndexOf('}');
-        if (jsonStart !== -1 && jsonEnd !== -1) {
-          data = JSON.parse(rawText.substring(jsonStart, jsonEnd + 1));
-        } else {
-          throw new Error('Invalid upstream response');
-        }
-      }
+      const data = await response.json();
 
       let songData = data?.[targetPid];
       if (!songData) {
         const keys = Object.keys(data || {});
-        if (keys.length > 0 && typeof data[keys[0]] === 'object') songData = data[keys[0]];
+        if (keys.length > 0) songData = data[keys[0]];
       }
 
-      if (!songData) {
-        return res.status(404).json({ error: 'Song details not found' });
-      }
+      if (!songData) return res.status(404).json({ error: 'Song details not found' });
 
       const encryptedUrl = songData.encrypted_media_url || songData.more_info?.encrypted_media_url;
-      if (!encryptedUrl) {
-        return res.status(404).json({ error: 'Encrypted URL not found' });
-      }
-
       const decryptedUrl = decryptUrl(encryptedUrl);
-      if (!decryptedUrl) {
-        return res.status(500).json({ error: 'Decryption failed' });
-      }
+      if (!decryptedUrl) return res.status(500).json({ error: 'Decryption failed' });
 
       const basePrefix = decryptedUrl.substring(0, decryptedUrl.lastIndexOf('_'));
       const ext = decryptedUrl.includes('.mp3') ? 'mp3' : 'mp4';
@@ -313,10 +300,8 @@ export default async function handler(req, res) {
     }
   }
 
-  // 3. SEARCH HANDLER
-  if (!q) {
-    return res.status(400).json({ error: 'Missing search query' });
-  }
+  // 3. SEARCH
+  if (!q) return res.status(400).json({ error: 'Missing search query' });
 
   try {
     const url = `https://www.jiosaavn.com/api.php?__call=autocomplete.get&_format=json&_marker=0&cc=in&includeMetaTags=1&query=${encodeURIComponent(q)}`;
@@ -324,12 +309,10 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     const results = [];
-
-    if (data?.songs?.data && Array.isArray(data.songs.data)) {
+    if (data?.songs?.data) {
       for (const item of data.songs.data) {
         const itemPid = String(item.id || item.more_info?.song_pids || '').split(',')[0].trim();
         if (!itemPid) continue;
-
         results.push({
           id: itemPid,
           pid: itemPid,
@@ -340,27 +323,7 @@ export default async function handler(req, res) {
         });
       }
     }
-
-    if (data?.albums?.data && Array.isArray(data.albums.data)) {
-      for (const item of data.albums.data) {
-        const itemPid = String(item.more_info?.song_pids || item.id || '').split(',')[0].trim();
-        if (!itemPid) continue;
-
-        results.push({
-          id: itemPid,
-          pid: itemPid,
-          title: cleanText(item.title),
-          artist: cleanText(item.music || item.description || 'Album Track'),
-          album: cleanText(item.title || 'Album'),
-          image: String(item.image || '').replace('50x50', '500x500')
-        });
-      }
-    }
-
-    return res.status(200).json({
-      query: q,
-      results
-    });
+    return res.status(200).json({ query: q, results });
   } catch (error) {
     return res.status(502).json({ error: error.message });
   }
