@@ -14,6 +14,7 @@ const playerAlbum = document.getElementById('playerAlbum');
 const mainAudio = document.getElementById('mainAudio');
 
 let currentTrackData = null;
+const activeDownloads = new Set();
 
 function escapeHtml(value = '') {
   return String(value).replace(/[&<>'"]/g, (char) => ({
@@ -43,7 +44,7 @@ async function searchSongs(query) {
   resultsEl.innerHTML = '';
 
   try {
-    const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+    const response = await fetch(`/api/index?q=${encodeURIComponent(query)}`);
     const data = await response.json();
 
     if (!response.ok) throw new Error(data.error || 'Search failed');
@@ -67,7 +68,7 @@ async function openSongPlayer(songPid) {
   statusEl.textContent = 'Decrypting & Loading Track...';
 
   try {
-    const res = await fetch(`/api/details?pid=${encodeURIComponent(songPid)}`);
+    const res = await fetch(`/api/index?action=details&pid=${encodeURIComponent(songPid)}`);
     const data = await res.json();
 
     if (!res.ok || !data.success) {
@@ -82,11 +83,10 @@ async function openSongPlayer(songPid) {
     playerArtist.textContent = data.artist;
     playerAlbum.textContent = data.album;
     
-    // Set Audio Player stream
+    // Play Stream
     mainAudio.src = data.links['320'] || data.links['160'];
     mainAudio.play();
 
-    // Toggle Views
     searchView.style.display = 'none';
     playerView.style.display = 'flex';
     window.scrollTo(0, 0);
@@ -97,20 +97,38 @@ async function openSongPlayer(songPid) {
   }
 }
 
-function triggerDownload(quality) {
+// PROGRAMMATIC ATTACHMENT DOWNLOAD (NO TAB NAVIGATION, NO FREEZE)
+function triggerDownload(quality, btnEl) {
   if (!currentTrackData || !currentTrackData.links[quality]) {
     alert('Download link not ready!');
     return;
   }
 
   const cdnUrl = currentTrackData.links[quality];
-  const safeTitle = currentTrackData.title.replace(/[^a-zA-Z0-9_-]/g, '_').trim() || 'song';
-  const filename = `${safeTitle}_${quality}kbps.mp4`;
+  const safeTitle = currentTrackData.title.replace(/[^\w\s.-]/g, '').trim() || 'song';
+  const key = `${safeTitle}_${quality}`;
 
-  // Direct backend streaming proxy (triggers browser native download bar)
-  const downloadUrl = `/api/download?action=download&url=${encodeURIComponent(cdnUrl)}&filename=${encodeURIComponent(filename)}`;
-  
-  window.location.href = downloadUrl;
+  if (activeDownloads.has(key)) return;
+  activeDownloads.add(key);
+
+  const proxyUrl = `/api/index?action=download&url=${encodeURIComponent(cdnUrl)}&filename=${encodeURIComponent(safeTitle)}&quality=${encodeURIComponent(quality + 'kbps')}`;
+
+  try {
+    const link = document.createElement('a');
+    link.href = proxyUrl;
+    link.download = `${safeTitle}_${quality}kbps.mp4`;
+    link.rel = 'noopener';
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  } catch (err) {
+    console.error('Download error:', err);
+  } finally {
+    setTimeout(() => {
+      activeDownloads.delete(key);
+    }, 1500);
+  }
 }
 
 backBtn.addEventListener('click', () => {
