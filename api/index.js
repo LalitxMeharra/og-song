@@ -214,7 +214,7 @@ export default async function handler(req, res) {
     'Referer': 'https://www.jiosaavn.com/'
   };
 
-  // 1. STREAMING DOWNLOAD WITH FULL EXPOSED HEADERS
+  // 1. STREAMING DOWNLOAD PIPELINE
   if (action === 'download') {
     if (!downloadUrl) return res.status(400).json({ error: 'Missing url parameter' });
 
@@ -238,13 +238,14 @@ export default async function handler(req, res) {
         return res.status(502).json({ error: 'Upstream fetch failed' });
       }
 
-      const contentType = upstream.headers.get('content-type') || 'audio/mp4';
       const contentLength = upstream.headers.get('content-length');
 
-      res.setHeader('Content-Type', contentType);
-      res.setHeader('Content-Disposition', `attachment; filename="${finalName}"`);
-      res.setHeader('Cache-Control', 'no-store');
-      res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition, Content-Length');
+      // Crucial Attachment & Stream Headers
+      res.setHeader('Content-Type', 'application/octet-stream');
+      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(finalName)}"; filename*=UTF-8''${encodeURIComponent(finalName)}`);
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
       if (contentLength) res.setHeader('Content-Length', contentLength);
 
       const nodeStream = Readable.fromWeb(upstream.body);
