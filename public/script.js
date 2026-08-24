@@ -82,7 +82,7 @@ async function openSongPlayer(songPid) {
     playerArtist.textContent = data.artist;
     playerAlbum.textContent = data.album;
     
-    // Set Audio Player stream (320kbps fallback 160kbps)
+    // Set Audio Player stream
     mainAudio.src = data.links['320'] || data.links['160'];
     mainAudio.play();
 
@@ -97,51 +97,20 @@ async function openSongPlayer(songPid) {
   }
 }
 
-async function triggerDownload(quality) {
+function triggerDownload(quality) {
   if (!currentTrackData || !currentTrackData.links[quality]) {
     alert('Download link not ready!');
     return;
   }
 
   const cdnUrl = currentTrackData.links[quality];
-  const safeTitle = currentTrackData.title.replace(/[^a-zA-Z0-9_\- ]/g, '').trim() || 'song';
+  const safeTitle = currentTrackData.title.replace(/[^a-zA-Z0-9_-]/g, '_').trim() || 'song';
   const filename = `${safeTitle}_${quality}kbps.mp4`;
 
-  // Visual status on button
-  const originalHeading = document.querySelector('.dl-heading').textContent;
-  document.querySelector('.dl-heading').textContent = `⏳ Downloading ${quality}kbps...`;
-
-  try {
-    // Direct Client-side Stream Fetch & Blob Creation
-    const response = await fetch(cdnUrl);
-    if (!response.ok) throw new Error('CDN download blocked');
-
-    const blob = await response.blob();
-    const blobUrl = window.URL.createObjectURL(blob);
-
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = blobUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-
-    setTimeout(() => {
-      window.URL.revokeObjectURL(blobUrl);
-      document.body.removeChild(a);
-      document.querySelector('.dl-heading').textContent = '⚡ Direct Downloads';
-    }, 1000);
-  } catch (err) {
-    // Direct Anchor Tag Fallback without freezing JS state
-    const a = document.createElement('a');
-    a.href = cdnUrl;
-    a.download = filename;
-    a.target = '_blank';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    document.querySelector('.dl-heading').textContent = '⚡ Direct Downloads';
-  }
+  // Direct backend streaming proxy (triggers browser native download bar)
+  const downloadUrl = `/api/download?action=download&url=${encodeURIComponent(cdnUrl)}&filename=${encodeURIComponent(filename)}`;
+  
+  window.location.href = downloadUrl;
 }
 
 backBtn.addEventListener('click', () => {
