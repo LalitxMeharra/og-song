@@ -1,145 +1,125 @@
-const form = document.getElementById('searchForm');
-const queryInput = document.getElementById('query');
-const statusEl = document.getElementById('status');
-const resultsEl = document.getElementById('results');
+import crypto from 'crypto';
 
-// Player View Elements
-const searchView = document.getElementById('searchView');
-const playerView = document.getElementById('playerView');
-const backBtn = document.getElementById('backBtn');
-const playerCover = document.getElementById('playerCover');
-const playerTitle = document.getElementById('playerTitle');
-const playerArtist = document.getElementById('playerArtist');
-const playerAlbum = document.getElementById('playerAlbum');
-const mainAudio = document.getElementById('mainAudio');
+const DES_KEY = Buffer.from('38346591', 'utf-8');
 
-let currentTrackData = null;
-
-function escapeHtml(value = '') {
-  return String(value).replace(/[&<>'"]/g, (char) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
-  }[char]));
+function cleanText(value = '') {
+  return String(value || '')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&amp;/g, '&')
+    .trim();
 }
 
-function renderResult(item) {
-  const title = escapeHtml(item.title || 'Untitled');
-  const artist = escapeHtml(item.artist || 'Unknown');
-  const image = item.image ? escapeHtml(item.image) : '';
-  const pid = escapeHtml(item.pid);
+function decryptUrl(encryptedUrl) {
+  try {
+    let cleaned = encryptedUrl.trim();
+    let missing = cleaned.length % 4;
+    if (missing) cleaned += '='.repeat(4 - missing);
 
-  return `
-    <article class="card" onclick="openSongPlayer('${pid}')">
-      ${image ? `<img class="cover" src="${image}" alt="" loading="lazy">` : `<div class="cover"></div>`}
-      <div class="info">
-        <h2 class="title">${title}</h2>
-        <p class="meta">${artist}</p>
-      </div>
-      <button class="play-action-btn">▶ Play</button>
-    </article>`;
+    let encryptedBytes = Buffer.from(cleaned, 'base64');
+    const remainder = encryptedBytes.length % 8;
+    if (remainder !== 0) {
+      encryptedBytes = encryptedBytes.subarray(0, encryptedBytes.length - remainder);
+    }
+
+    const decipher = crypto.createDecipheriv('des-ecb', DES_KEY, null);
+    decipher.setAutoPadding(false);
+
+    let decrypted = Buffer.concat([decipher.update(encryptedBytes), decipher.final()]);
+
+    const pad = decrypted[decrypted.length - 1];
+    if (pad >= 1 && pad <= 8) {
+      decrypted = decrypted.subarray(0, decrypted.length - pad);
+    }
+
+    return decrypted.toString('utf-8').trim();
+  } catch (e) {
+    return null;
+  }
 }
 
-async function searchSongs(query) {
-  statusEl.textContent = 'Searching...';
-  resultsEl.innerHTML = '';
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+
+  const { q, pid, action } = req.query;
+
+  const headers = {
+    'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+    'Referer': 'https://www.jiosaavn.com/'
+  };
+
+  // 1. DETAILS & STREAM/DOWNLOAD LINKS
+  if (pid || action === 'details') {
+    const songPid = pid;
+    if (!songPid) return res.status(400).json({ error: 'Song PID required' });
+
+    try {
+      const response = await fetch(`https://www.jiosaavn.com/api.php?__call=song.getDetails&cc=in&_marker=0&_format=json&pids=${encodeURIComponent(songPid)}`, { headers });
+      const data = await response.json();
+      const songData = data?.[songPid] || {};
+
+      const encryptedUrl = songData.encrypted_media_url || songData.more_info?.encrypted_media_url;
+      if (!encryptedUrl) {
+        return res.status(404).json({ error: 'Encrypted media URL not found' });
+      }
+
+      const decryptedUrl = decryptUrl(encryptedUrl);
+      if (!decryptedUrl) {
+        return res.status(500).json({ error: 'Decryption failed' });
+      }
+
+      const basePrefix = decryptedUrl.substring(0, decryptedUrl.lastIndexOf('_'));
+      const ext = decryptedUrl.includes('.mp3') ? 'mp3' : 'mp4';
+
+      return res.status(200).json({
+        success: true,
+        id: songPid,
+        title: cleanText(songData.song || songData.title),
+        artist: cleanText(songData.primary_artists || songData.more_info?.primary_artists),
+        album: cleanText(songData.album),
+        image: (songData.image || '').replace('50x50', '500x500').replace('150x150', '500x500'),
+        duration: songData.duration || '0',
+        links: {
+          '320': `${basePrefix}_320.${ext}`,
+          '160': `${basePrefix}_160.${ext}`,
+          '96': `${basePrefix}_96.${ext}`
+        }
+      });
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
+    }
+  }
+
+  // 2. SEARCH HANDLER
+  if (!q) {
+    return res.status(400).json({ error: 'Missing search query' });
+  }
 
   try {
-    const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+    const url = `https://www.jiosaavn.com/api.php?__call=autocomplete.get&_format=json&_marker=0&cc=in&includeMetaTags=1&query=${encodeURIComponent(q)}`;
+    const response = await fetch(url, { headers });
     const data = await response.json();
 
-    if (!response.ok) throw new Error(data.error || 'Search failed');
+    const songs = (data?.songs?.data || []).map((item) => {
+      const info = item?.more_info || {};
+      return {
+        id: String(item.id || ''),
+        pid: String(item.id || ''), // Direct song id is the PID
+        title: cleanText(item.title),
+        artist: cleanText(info.primary_artists || item.description || 'Unknown'),
+        album: cleanText(item.album || 'Single'),
+        image: String(item.image || '').replace('50x50', '500x500')
+      };
+    });
 
-    const results = Array.isArray(data.results) ? data.results : [];
-    if (!results.length) {
-      statusEl.textContent = 'No results found.';
-      resultsEl.innerHTML = '<div class="empty">Try another song or artist name.</div>';
-      return;
-    }
-
-    statusEl.textContent = `${results.length} result(s) found for “${data.query}”.`;
-    resultsEl.innerHTML = results.map(renderResult).join('');
+    return res.status(200).json({
+      query: q,
+      results: songs
+    });
   } catch (error) {
-    statusEl.textContent = `Error: ${error.message}`;
-    resultsEl.innerHTML = '<div class="empty">Unable to fetch songs. Try again.</div>';
+    return res.status(502).json({ error: error.message });
   }
 }
-
-async function openSongPlayer(songPid) {
-  statusEl.textContent = 'Decrypting & Loading Track...';
-
-  try {
-    const res = await fetch(`/api/details?pid=${encodeURIComponent(songPid)}`);
-    const data = await res.json();
-
-    if (!res.ok || !data.success) {
-      throw new Error(data.error || 'Failed to get song stream');
-    }
-
-    currentTrackData = data;
-
-    // Fill UI
-    playerCover.src = data.image || '';
-    playerTitle.textContent = data.title;
-    playerArtist.textContent = data.artist;
-    playerAlbum.textContent = data.album;
-    
-    // Load full decoded stream
-    mainAudio.src = data.links['320'] || data.links['160'];
-    mainAudio.play();
-
-    // Toggle Views
-    searchView.style.display = 'none';
-    playerView.style.display = 'flex';
-    window.scrollTo(0, 0);
-  } catch (err) {
-    alert(`Error: ${err.message}`);
-  } finally {
-    statusEl.textContent = '';
-  }
-}
-
-async function triggerDownload(quality) {
-  if (!currentTrackData || !currentTrackData.links[quality]) {
-    alert('Download link not ready!');
-    return;
-  }
-
-  const downloadUrl = currentTrackData.links[quality];
-  const safeTitle = currentTrackData.title.replace(/[^a-zA-Z0-9_-]/g, '_');
-  const filename = `${safeTitle}_${quality}kbps.mp4`;
-
-  try {
-    const response = await fetch(downloadUrl);
-    const blob = await response.blob();
-    const blobUrl = window.URL.createObjectURL(blob);
-
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = blobUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-
-    window.URL.revokeObjectURL(blobUrl);
-    document.body.removeChild(a);
-  } catch (e) {
-    const a = document.createElement('a');
-    a.href = downloadUrl;
-    a.download = filename;
-    a.target = '_blank';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  }
-}
-
-backBtn.addEventListener('click', () => {
-  mainAudio.pause();
-  playerView.style.display = 'none';
-  searchView.style.display = 'block';
-});
-
-form.addEventListener('submit', (event) => {
-  event.preventDefault();
-  const query = queryInput.value.trim();
-  if (query) searchSongs(query);
-});
