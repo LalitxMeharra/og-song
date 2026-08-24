@@ -286,7 +286,7 @@ h1 {
   gap: 10px;
 }
 
-/* Fixed Underlines & Clean Links */
+/* Complete Underline Removal */
 .dl-btn, 
 .dl-btn:link, 
 .dl-btn:visited, 
@@ -306,18 +306,21 @@ h1 {
   transition: transform 0.2s, background 0.2s, border-color 0.2s;
 }
 
+.dl-btn span,
+.dl-btn small {
+  text-decoration: none !important;
+}
+
 .dl-btn span {
   font-size: 0.92rem;
   font-weight: 800;
   color: var(--accent-color);
-  text-decoration: none !important;
 }
 
 .dl-btn small {
   font-size: 0.72rem;
   color: var(--text-muted);
   margin-top: 3px;
-  text-decoration: none !important;
 }
 
 .dl-btn:hover {
