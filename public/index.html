@@ -36,23 +36,25 @@
         <p id="playerArtist" class="player-artist">Artist Name</p>
         <p id="playerAlbum" class="player-album">Album</p>
 
+        <!-- Streaming Audio Player -->
         <audio id="mainAudio" controls class="audio-element"></audio>
 
+        <!-- Pure Native Direct CDN Download Anchors -->
         <div class="download-section">
           <p class="dl-heading">⚡ DIRECT DOWNLOADS</p>
           <div class="dl-buttons">
-            <button type="button" class="dl-btn" onclick="downloadDirect('320', this)">
+            <a id="btn320" class="dl-btn" href="#" download>
               <span>320 kbps</span>
               <small>Ultra HD</small>
-            </button>
-            <button type="button" class="dl-btn" onclick="downloadDirect('160', this)">
+            </a>
+            <a id="btn160" class="dl-btn" href="#" download>
               <span>160 kbps</span>
               <small>High</small>
-            </button>
-            <button type="button" class="dl-btn" onclick="downloadDirect('96', this)">
+            </a>
+            <a id="btn96" class="dl-btn" href="#" download>
               <span>96 kbps</span>
               <small>Data Saver</small>
-            </button>
+            </a>
           </div>
         </div>
       </div>
