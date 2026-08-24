@@ -82,7 +82,7 @@ async function openSongPlayer(songPid) {
     playerArtist.textContent = data.artist;
     playerAlbum.textContent = data.album;
     
-    // Load full decoded stream
+    // Set Audio Player stream (320kbps fallback 160kbps)
     mainAudio.src = data.links['320'] || data.links['160'];
     mainAudio.play();
 
@@ -97,39 +97,25 @@ async function openSongPlayer(songPid) {
   }
 }
 
-async function triggerDownload(quality) {
+function triggerDownload(quality) {
   if (!currentTrackData || !currentTrackData.links[quality]) {
     alert('Download link not ready!');
     return;
   }
 
-  const downloadUrl = currentTrackData.links[quality];
-  const safeTitle = currentTrackData.title.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const cdnUrl = currentTrackData.links[quality];
+  const safeTitle = currentTrackData.title.replace(/[^a-zA-Z0-9_\- ]/g, '').trim() || 'song';
   const filename = `${safeTitle}_${quality}kbps.mp4`;
 
-  try {
-    const response = await fetch(downloadUrl);
-    const blob = await response.blob();
-    const blobUrl = window.URL.createObjectURL(blob);
-
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = blobUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-
-    window.URL.revokeObjectURL(blobUrl);
-    document.body.removeChild(a);
-  } catch (e) {
-    const a = document.createElement('a');
-    a.href = downloadUrl;
-    a.download = filename;
-    a.target = '_blank';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  }
+  // Backend download proxy (guarantees browser download popup)
+  const proxyDownloadUrl = `/api/download?action=download&url=${encodeURIComponent(cdnUrl)}&filename=${encodeURIComponent(filename)}`;
+  
+  const a = document.createElement('a');
+  a.href = proxyDownloadUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
 
 backBtn.addEventListener('click', () => {
