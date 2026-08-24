@@ -87,17 +87,12 @@ async function openSongPlayer(songPid) {
     mainAudio.src = data.links['320'] || data.links['160'];
     mainAudio.play();
 
-    // Set DIRECT CDN URLS on buttons (No Vercel proxy bottleneck)
+    // Direct Native Backend Attachment Download Links
     const safeTitle = data.title.replace(/[^\w\s.-]/g, '').trim() || 'song';
     
-    btn320.href = data.links['320'];
-    btn320.setAttribute('download', `${safeTitle}_320kbps.mp4`);
-
-    btn160.href = data.links['160'];
-    btn160.setAttribute('download', `${safeTitle}_160kbps.mp4`);
-
-    btn96.href = data.links['96'];
-    btn96.setAttribute('download', `${safeTitle}_96kbps.mp4`);
+    btn320.href = `/api?action=download&url=${encodeURIComponent(data.links['320'])}&filename=${encodeURIComponent(safeTitle)}&quality=320kbps`;
+    btn160.href = `/api?action=download&url=${encodeURIComponent(data.links['160'])}&filename=${encodeURIComponent(safeTitle)}&quality=160kbps`;
+    btn96.href = `/api?action=download&url=${encodeURIComponent(data.links['96'])}&filename=${encodeURIComponent(safeTitle)}&quality=96kbps`;
 
     // Switch View
     searchView.style.display = 'none';
