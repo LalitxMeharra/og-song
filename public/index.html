@@ -25,7 +25,7 @@
     <section id="results" class="results"></section>
   </main>
 
-  <!-- Dedicated Player & Download Modal View -->
+  <!-- Dedicated Player View -->
   <div id="playerView" class="player-overlay" style="display: none;">
     <div class="player-container">
       <button id="backBtn" class="back-btn">← Back to Search</button>
@@ -39,21 +39,22 @@
         <!-- Streaming Audio Player -->
         <audio id="mainAudio" controls class="audio-element"></audio>
 
+        <!-- Direct Native Download Links (No JS lock, Android 100% compatible) -->
         <div class="download-section">
           <p class="dl-heading">⚡ Direct Downloads</p>
           <div class="dl-buttons">
-            <button class="dl-btn" onclick="triggerDownload('320')">
+            <a id="btn320" class="dl-btn" href="#" target="_blank" rel="noopener noreferrer">
               <span>320 kbps</span>
               <small>Ultra HD</small>
-            </button>
-            <button class="dl-btn" onclick="triggerDownload('160')">
+            </a>
+            <a id="btn160" class="dl-btn" href="#" target="_blank" rel="noopener noreferrer">
               <span>160 kbps</span>
               <small>High</small>
-            </button>
-            <button class="dl-btn" onclick="triggerDownload('96')">
+            </a>
+            <a id="btn96" class="dl-btn" href="#" target="_blank" rel="noopener noreferrer">
               <span>96 kbps</span>
               <small>Data Saver</small>
-            </button>
+            </a>
           </div>
         </div>
       </div>
