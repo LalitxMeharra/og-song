@@ -114,7 +114,6 @@ function desDecipher(encryptedBytes, keyBytes) {
     return table.map(pos => bits[pos - 1]);
   }
 
-  // Key Schedule
   const keyBits = bytesToBits(keyBytes);
   const pc1Bits = permute(keyBits, PC1);
   let C = pc1Bits.slice(0, 28);
@@ -127,10 +126,8 @@ function desDecipher(encryptedBytes, keyBytes) {
     D = D.slice(shift).concat(D.slice(0, shift));
     subKeys.push(permute(C.concat(D), PC2));
   }
-  // Reverse subkeys for Decryption
   subKeys.reverse();
 
-  // Decrypt Block by Block
   const outBytes = [];
   for (let offset = 0; offset < encryptedBytes.length; offset += 8) {
     const block = encryptedBytes.slice(offset, offset + 8);
@@ -190,7 +187,6 @@ function decryptUrl(encryptedUrl) {
     const keyBytes = Buffer.from(DES_KEY_STRING, 'utf-8');
     const decrypted = desDecipher(encryptedBytes, keyBytes);
 
-    // PKCS7 Unpadding
     const padLen = decrypted[decrypted.length - 1];
     let finalBytes = decrypted;
     if (padLen >= 1 && padLen <= 8) {
@@ -209,14 +205,32 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const { q, pid, song_pids, songId, action } = req.query;
+  const { q, pid, song_pids, songId, action, url: downloadUrl, filename } = req.query;
 
   const headers = {
     'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
     'Referer': 'https://www.jiosaavn.com/'
   };
 
-  // 1. DETAILS & DOWNLOAD LINKS
+  // 1. PROXY DOWNLOAD (Forces attachment download, fixes black screen)
+  if (action === 'download' && downloadUrl) {
+    try {
+      const audioRes = await fetch(downloadUrl, { headers });
+      if (!audioRes.ok) throw new Error('Failed to fetch from CDN');
+
+      const fileBuffer = Buffer.from(await audioRes.arrayBuffer());
+      const safeFilename = encodeURIComponent(filename || 'song.mp4');
+
+      res.setHeader('Content-Type', 'audio/mp4');
+      res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"; filename*=UTF-8''${safeFilename}`);
+      res.setHeader('Content-Length', fileBuffer.length);
+      return res.status(200).send(fileBuffer);
+    } catch (e) {
+      return res.status(500).json({ error: 'Download stream error: ' + e.message });
+    }
+  }
+
+  // 2. DETAILS & DOWNLOAD LINKS
   if (pid || song_pids || songId || action === 'details') {
     let targetPid = String(pid || song_pids || songId || '').trim();
     if (targetPid.includes(',')) targetPid = targetPid.split(',')[0].trim();
@@ -282,7 +296,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // 2. SEARCH HANDLER
+  // 3. SEARCH HANDLER
   if (!q) {
     return res.status(400).json({ error: 'Missing search query' });
   }
