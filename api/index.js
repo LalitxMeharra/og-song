@@ -204,6 +204,7 @@ function decryptUrl(encryptedUrl) {
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', '*');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const { action, q, pid, id, url: downloadUrl, filename, quality } = req.query;
@@ -213,7 +214,7 @@ export default async function handler(req, res) {
     'Referer': 'https://www.jiosaavn.com/'
   };
 
-  // 1. STREAMING PROXY DOWNLOAD PIPELINE
+  // 1. STREAMING DOWNLOAD WITH FULL EXPOSED HEADERS
   if (action === 'download') {
     if (!downloadUrl) return res.status(400).json({ error: 'Missing url parameter' });
 
@@ -243,7 +244,7 @@ export default async function handler(req, res) {
       res.setHeader('Content-Type', contentType);
       res.setHeader('Content-Disposition', `attachment; filename="${finalName}"`);
       res.setHeader('Cache-Control', 'no-store');
-      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition, Content-Length');
       if (contentLength) res.setHeader('Content-Length', contentLength);
 
       const nodeStream = Readable.fromWeb(upstream.body);
@@ -257,7 +258,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // 2. DETAILS & STREAM/DOWNLOAD LINKS
+  // 2. DETAILS
   if (action === 'details' || pid || id) {
     let targetPid = String(pid || id || '').trim();
     if (targetPid.includes(',')) targetPid = targetPid.split(',')[0].trim();
