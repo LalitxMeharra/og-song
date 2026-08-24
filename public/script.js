@@ -14,7 +14,6 @@ const playerAlbum = document.getElementById('playerAlbum');
 const mainAudio = document.getElementById('mainAudio');
 
 let currentTrackData = null;
-let currentBlobUrl = null; // Track current blob URL to revoke later
 
 function escapeHtml(value = '') {
   return String(value).replace(/[&<>'"]/g, (char) => ({
@@ -67,12 +66,6 @@ async function searchSongs(query) {
 async function openSongPlayer(songPid) {
   statusEl.textContent = 'Decrypting & Loading Track...';
 
-  // Revoke any existing blob URL to free memory
-  if (currentBlobUrl) {
-    window.URL.revokeObjectURL(currentBlobUrl);
-    currentBlobUrl = null;
-  }
-
   try {
     const res = await fetch(`/api/details?pid=${encodeURIComponent(songPid)}`);
     const data = await res.json();
@@ -104,7 +97,7 @@ async function openSongPlayer(songPid) {
   }
 }
 
-async function triggerDownload(quality) {
+function triggerDownload(quality) {
   if (!currentTrackData || !currentTrackData.links[quality]) {
     alert('Download link not ready!');
     return;
@@ -114,48 +107,23 @@ async function triggerDownload(quality) {
   const safeTitle = currentTrackData.title.replace(/[^a-zA-Z0-9_-]/g, '_');
   const filename = `${safeTitle}_${quality}kbps.mp4`;
 
-  try {
-    // Revoke previous blob URL if exists
-    if (currentBlobUrl) {
-      window.URL.revokeObjectURL(currentBlobUrl);
-      currentBlobUrl = null;
-    }
-
-    const response = await fetch(downloadUrl);
-    const blob = await response.blob();
-    currentBlobUrl = window.URL.createObjectURL(blob);
-
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = currentBlobUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-
-    // Don't revoke immediately - browser needs time to download
-    // We'll revoke it when next download happens or player closes
-    
+  // Create a new anchor element for each download
+  const a = document.createElement('a');
+  a.href = downloadUrl;
+  a.download = filename;
+  a.target = '_blank';
+  document.body.appendChild(a);
+  a.click();
+  
+  // Small delay before removing the element
+  setTimeout(() => {
     document.body.removeChild(a);
-  } catch (e) {
-    // Fallback: try direct download
-    const a = document.createElement('a');
-    a.href = downloadUrl;
-    a.download = filename;
-    a.target = '_blank';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  }
+  }, 100);
 }
 
-// Update back button to clean up resources
 backBtn.addEventListener('click', () => {
   mainAudio.pause();
-  mainAudio.src = ''; // Clear audio source
-  if (currentBlobUrl) {
-    window.URL.revokeObjectURL(currentBlobUrl);
-    currentBlobUrl = null;
-  }
+  mainAudio.src = '';
   currentTrackData = null;
   playerView.style.display = 'none';
   searchView.style.display = 'block';
