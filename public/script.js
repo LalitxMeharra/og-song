@@ -94,46 +94,43 @@ async function openSongPlayer(songPid) {
   }
 }
 
-// ASYNC BLOB DOWNLOAD (WORKS 100% OF THE TIME ON MOBILE CHROME)
-async function downloadDirect(quality, btnElement) {
+// MULTI-DOWNLOAD ENGINE FOR ANDROID/DESKTOP
+function downloadDirect(quality, btnElement) {
   if (!currentTrackData || !currentTrackData.links[quality]) {
     alert('Download link not ready');
     return;
   }
 
+  // 1. Temporary visual indicator
   const origHTML = btnElement.innerHTML;
-  btnElement.innerHTML = `<span>⏳ ...</span><small>Saving</small>`;
-  btnElement.style.pointerEvents = 'none';
+  btnElement.innerHTML = `<span>⏳ ...</span><small>Starting</small>`;
+  btnElement.style.opacity = '0.7';
 
   const cdnUrl = currentTrackData.links[quality];
   const safeTitle = currentTrackData.title.replace(/[^\w\s.-]/g, '').trim() || 'song';
-  const filename = `${safeTitle}_${quality}kbps.mp4`;
+  
+  // 2. Anti-cache unique timestamp to avoid mobile socket reuse lock
+  const downloadUrl = `/api?action=download&url=${encodeURIComponent(cdnUrl)}&filename=${encodeURIComponent(safeTitle)}&quality=${encodeURIComponent(quality + 'kbps')}&_t=${Date.now()}`;
 
-  const downloadUrl = `/api?action=download&url=${encodeURIComponent(cdnUrl)}&filename=${encodeURIComponent(safeTitle)}&quality=${encodeURIComponent(quality + 'kbps')}`;
+  // 3. Isolated Hidden iFrame Launcher (Bypasses Chrome JS Lock)
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'absolute';
+  iframe.style.width = '0px';
+  iframe.style.height = '0px';
+  iframe.style.border = '0';
+  iframe.style.display = 'none';
+  iframe.src = downloadUrl;
 
-  try {
-    const response = await fetch(downloadUrl);
-    if (!response.ok) throw new Error('Download failed');
+  document.body.appendChild(iframe);
 
-    const blob = await response.blob();
-    const blobUrl = window.URL.createObjectURL(blob);
-
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    
-    setTimeout(() => {
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(blobUrl);
-    }, 1000);
-  } catch (e) {
-    alert('Download error: ' + e.message);
-  } finally {
+  // 4. Auto-destroy iframe and restore button immediately
+  setTimeout(() => {
+    if (iframe.parentNode) {
+      document.body.removeChild(iframe);
+    }
     btnElement.innerHTML = origHTML;
-    btnElement.style.pointerEvents = 'auto';
-  }
+    btnElement.style.opacity = '1';
+  }, 2000);
 }
 
 backBtn.addEventListener('click', () => {
