@@ -14,6 +14,7 @@ const playerAlbum = document.getElementById('playerAlbum');
 const mainAudio = document.getElementById('mainAudio');
 
 let currentTrackData = null;
+let isDownloading = false;
 
 function escapeHtml(value = '') {
   return String(value).replace(/[&<>'"]/g, (char) => ({
@@ -64,6 +65,11 @@ async function searchSongs(query) {
 }
 
 async function openSongPlayer(songPid) {
+  if (isDownloading) {
+    alert('Please wait for current download to finish!');
+    return;
+  }
+
   statusEl.textContent = 'Decrypting & Loading Track...';
 
   try {
@@ -90,43 +96,82 @@ async function openSongPlayer(songPid) {
     searchView.style.display = 'none';
     playerView.style.display = 'flex';
     window.scrollTo(0, 0);
+    statusEl.textContent = 'Ready to download!';
   } catch (err) {
     alert(`Error: ${err.message}`);
-  } finally {
-    statusEl.textContent = '';
+    statusEl.textContent = 'Error loading song';
   }
 }
 
-function triggerDownload(quality) {
+async function triggerDownload(quality) {
+  if (isDownloading) {
+    alert('Download already in progress!');
+    return;
+  }
+
   if (!currentTrackData || !currentTrackData.links[quality]) {
-    alert('Download link not ready!');
+    alert('Download link not ready! Please play the song first.');
     return;
   }
 
   const downloadUrl = currentTrackData.links[quality];
   const safeTitle = currentTrackData.title.replace(/[^a-zA-Z0-9_-]/g, '_');
-  const filename = `${safeTitle}_${quality}kbps.mp4`;
+  const filename = `${safeTitle}_${quality}kbps.mp3`;
 
-  // Create a new anchor element for each download
-  const a = document.createElement('a');
-  a.href = downloadUrl;
-  a.download = filename;
-  a.target = '_blank';
-  document.body.appendChild(a);
-  a.click();
-  
-  // Small delay before removing the element
-  setTimeout(() => {
-    document.body.removeChild(a);
-  }, 100);
+  // Show downloading status
+  statusEl.textContent = `Downloading ${quality}kbps...`;
+  isDownloading = true;
+
+  try {
+    // Use backend proxy to download
+    const response = await fetch(`/api/download?action=download&url=${encodeURIComponent(downloadUrl)}&quality=${quality}`);
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Download failed');
+    }
+
+    // Get the blob from response
+    const blob = await response.blob();
+    
+    // Create download link
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    
+    // Cleanup
+    setTimeout(() => {
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(blobUrl);
+      statusEl.textContent = `✅ ${quality}kbps download complete!`;
+      isDownloading = false;
+    }, 2000);
+    
+  } catch (error) {
+    console.error('Download error:', error);
+    statusEl.textContent = `❌ Download failed: ${error.message}`;
+    isDownloading = false;
+    alert(`Download failed: ${error.message}\n\nTry again or use another quality.`);
+  }
 }
 
 backBtn.addEventListener('click', () => {
+  if (isDownloading) {
+    if (!confirm('Download in progress. Are you sure you want to go back?')) {
+      return;
+    }
+  }
+  
   mainAudio.pause();
   mainAudio.src = '';
   currentTrackData = null;
+  isDownloading = false;
   playerView.style.display = 'none';
   searchView.style.display = 'block';
+  statusEl.textContent = 'Type a song name and search.';
 });
 
 form.addEventListener('submit', (event) => {
@@ -135,6 +180,9 @@ form.addEventListener('submit', (event) => {
   if (query) searchSongs(query);
 });
 
-// Make functions globally accessible for onclick handlers
+// Make functions globally accessible
 window.openSongPlayer = openSongPlayer;
 window.triggerDownload = triggerDownload;
+
+// Initial status
+statusEl.textContent = 'Type a song name and search.';
