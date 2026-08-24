@@ -1,11 +1,4 @@
-import { Readable } from 'stream';
-
-export const config = {
-  api: {
-    responseLimit: false,
-  },
-};
-
+// Lightweight pure-JS DES-ECB Engine (Zero OpenSSL / Deprecation bugs)
 const DES_KEY_STRING = '38346591';
 
 function desDecipher(encryptedBytes, keyBytes) {
@@ -98,7 +91,9 @@ function desDecipher(encryptedBytes, keyBytes) {
   function bytesToBits(bytes) {
     const bits = [];
     for (let i = 0; i < bytes.length; i++) {
-      for (let j = 7; j >= 0; j--) bits.push((bytes[i] >> j) & 1);
+      for (let j = 7; j >= 0; j--) {
+        bits.push((bytes[i] >> j) & 1);
+      }
     }
     return bits;
   }
@@ -107,7 +102,9 @@ function desDecipher(encryptedBytes, keyBytes) {
     const bytes = [];
     for (let i = 0; i < bits.length; i += 8) {
       let b = 0;
-      for (let j = 0; j < 8; j++) b = (b << 1) | bits[i + j];
+      for (let j = 0; j < 8; j++) {
+        b = (b << 1) | bits[i + j];
+      }
       bytes.push(b);
     }
     return bytes;
@@ -117,6 +114,7 @@ function desDecipher(encryptedBytes, keyBytes) {
     return table.map(pos => bits[pos - 1]);
   }
 
+  // Key Schedule
   const keyBits = bytesToBits(keyBytes);
   const pc1Bits = permute(keyBits, PC1);
   let C = pc1Bits.slice(0, 28);
@@ -129,8 +127,10 @@ function desDecipher(encryptedBytes, keyBytes) {
     D = D.slice(shift).concat(D.slice(0, shift));
     subKeys.push(permute(C.concat(D), PC2));
   }
+  // Reverse subkeys for Decryption
   subKeys.reverse();
 
+  // Decrypt Block by Block
   const outBytes = [];
   for (let offset = 0; offset < encryptedBytes.length; offset += 8) {
     const block = encryptedBytes.slice(offset, offset + 8);
@@ -147,7 +147,9 @@ function desDecipher(encryptedBytes, keyBytes) {
         const row = (chunk[0] << 1) | chunk[5];
         const col = (chunk[1] << 3) | (chunk[2] << 2) | (chunk[3] << 1) | chunk[4];
         const val = S_BOXES[s][row][col];
-        for (let j = 3; j >= 0; j--) sOutput.push((val >> j) & 1);
+        for (let j = 3; j >= 0; j--) {
+          sOutput.push((val >> j) & 1);
+        }
       }
       const fVal = permute(sOutput, P);
       const newR = L.map((b, idx) => b ^ fVal[idx]);
@@ -188,6 +190,7 @@ function decryptUrl(encryptedUrl) {
     const keyBytes = Buffer.from(DES_KEY_STRING, 'utf-8');
     const decrypted = desDecipher(encryptedBytes, keyBytes);
 
+    // PKCS7 Unpadding
     const padLen = decrypted[decrypted.length - 1];
     let finalBytes = decrypted;
     if (padLen >= 1 && padLen <= 8) {
@@ -204,81 +207,91 @@ function decryptUrl(encryptedUrl) {
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', '*');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const { action, q, pid, id, url: downloadUrl, filename, quality } = req.query;
+  const { q, pid, song_pids, songId, action } = req.query;
 
   const headers = {
-    'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36',
+    'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
     'Referer': 'https://www.jiosaavn.com/'
   };
 
-  // 1. STREAMING DOWNLOAD PIPELINE
+  // 1. DOWNLOAD PROXY ENDPOINT
   if (action === 'download') {
-    if (!downloadUrl) return res.status(400).json({ error: 'Missing url parameter' });
-
-    let cdnUrl;
-    try {
-      cdnUrl = decodeURIComponent(downloadUrl);
-      new URL(cdnUrl);
-    } catch {
-      return res.status(400).json({ error: 'Invalid url' });
+    const { url, quality } = req.query;
+    
+    if (!url) {
+      return res.status(400).json({ error: 'Download URL required' });
     }
 
-    const safeBase = (filename || 'song').replace(/[^\w\s.-]/g, '').trim() || 'song';
-    const finalName = `${safeBase}_${quality || '320kbps'}.mp4`;
-
     try {
-      const upstream = await fetch(cdnUrl, {
-        headers: { 'User-Agent': 'Mozilla/5.0', Accept: '*/*' }
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Referer': 'https://www.jiosaavn.com/'
+        }
       });
 
-      if (!upstream.ok || !upstream.body) {
-        return res.status(502).json({ error: 'Upstream fetch failed' });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch: ${response.status}`);
       }
 
-      const contentLength = upstream.headers.get('content-length');
-
-      // Crucial Attachment & Stream Headers
-      res.setHeader('Content-Type', 'application/octet-stream');
-      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(finalName)}"; filename*=UTF-8''${encodeURIComponent(finalName)}`);
-      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      res.setHeader('Pragma', 'no-cache');
-      res.setHeader('Expires', '0');
-      if (contentLength) res.setHeader('Content-Length', contentLength);
-
-      const nodeStream = Readable.fromWeb(upstream.body);
-      nodeStream.on('error', () => { if (!res.headersSent) res.status(500).end(); });
-      req.on('close', () => { if (!res.writableEnded) nodeStream.destroy(); });
-
-      return nodeStream.pipe(res);
-    } catch (err) {
-      if (!res.headersSent) res.status(500).json({ error: 'Stream error: ' + err.message });
-      return;
+      const buffer = await response.arrayBuffer();
+      const contentType = response.headers.get('content-type') || 'audio/mpeg';
+      
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Disposition', `attachment; filename="song_${quality || '320'}.mp3"`);
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.send(Buffer.from(buffer));
+    } catch (error) {
+      res.status(500).json({ error: error.message });
     }
+    return;
   }
 
-  // 2. DETAILS
-  if (action === 'details' || pid || id) {
-    let targetPid = String(pid || id || '').trim();
+  // 2. DETAILS & DOWNLOAD LINKS
+  if (pid || song_pids || songId || action === 'details') {
+    let targetPid = String(pid || song_pids || songId || '').trim();
     if (targetPid.includes(',')) targetPid = targetPid.split(',')[0].trim();
+
+    if (!targetPid) return res.status(400).json({ error: 'Valid Song PID required' });
 
     try {
       const response = await fetch(`https://www.jiosaavn.com/api.php?__call=song.getDetails&cc=in&_marker=0&_format=json&pids=${encodeURIComponent(targetPid)}`, { headers });
-      const data = await response.json();
+      const rawText = await response.text();
+
+      let data;
+      try {
+        data = JSON.parse(rawText);
+      } catch (err) {
+        const jsonStart = rawText.indexOf('{');
+        const jsonEnd = rawText.lastIndexOf('}');
+        if (jsonStart !== -1 && jsonEnd !== -1) {
+          data = JSON.parse(rawText.substring(jsonStart, jsonEnd + 1));
+        } else {
+          throw new Error('Invalid upstream response');
+        }
+      }
 
       let songData = data?.[targetPid];
       if (!songData) {
         const keys = Object.keys(data || {});
-        if (keys.length > 0) songData = data[keys[0]];
+        if (keys.length > 0 && typeof data[keys[0]] === 'object') songData = data[keys[0]];
       }
 
-      if (!songData) return res.status(404).json({ error: 'Song details not found' });
+      if (!songData) {
+        return res.status(404).json({ error: 'Song details not found' });
+      }
 
       const encryptedUrl = songData.encrypted_media_url || songData.more_info?.encrypted_media_url;
+      if (!encryptedUrl) {
+        return res.status(404).json({ error: 'Encrypted URL not found in metadata' });
+      }
+
       const decryptedUrl = decryptUrl(encryptedUrl);
-      if (!decryptedUrl) return res.status(500).json({ error: 'Decryption failed' });
+      if (!decryptedUrl) {
+        return res.status(500).json({ error: 'Decryption failed' });
+      }
 
       const basePrefix = decryptedUrl.substring(0, decryptedUrl.lastIndexOf('_'));
       const ext = decryptedUrl.includes('.mp3') ? 'mp3' : 'mp4';
@@ -302,8 +315,10 @@ export default async function handler(req, res) {
     }
   }
 
-  // 3. SEARCH
-  if (!q) return res.status(400).json({ error: 'Missing search query' });
+  // 3. SEARCH HANDLER
+  if (!q) {
+    return res.status(400).json({ error: 'Missing search query' });
+  }
 
   try {
     const url = `https://www.jiosaavn.com/api.php?__call=autocomplete.get&_format=json&_marker=0&cc=in&includeMetaTags=1&query=${encodeURIComponent(q)}`;
@@ -311,10 +326,12 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     const results = [];
-    if (data?.songs?.data) {
+
+    if (data?.songs?.data && Array.isArray(data.songs.data)) {
       for (const item of data.songs.data) {
         const itemPid = String(item.id || item.more_info?.song_pids || '').split(',')[0].trim();
         if (!itemPid) continue;
+
         results.push({
           id: itemPid,
           pid: itemPid,
@@ -325,8 +342,28 @@ export default async function handler(req, res) {
         });
       }
     }
-    return res.status(200).json({ query: q, results });
+
+    if (data?.albums?.data && Array.isArray(data.albums.data)) {
+      for (const item of data.albums.data) {
+        const itemPid = String(item.more_info?.song_pids || item.id || '').split(',')[0].trim();
+        if (!itemPid) continue;
+
+        results.push({
+          id: itemPid,
+          pid: itemPid,
+          title: cleanText(item.title),
+          artist: cleanText(item.music || item.description || 'Album Track'),
+          album: cleanText(item.title || 'Album'),
+          image: String(item.image || '').replace('50x50', '500x500')
+        });
+      }
+    }
+
+    return res.status(200).json({
+      query: q,
+      results
+    });
   } catch (error) {
     return res.status(502).json({ error: error.message });
   }
-}
+       }
