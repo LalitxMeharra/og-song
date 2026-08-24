@@ -13,11 +13,6 @@ const playerArtist = document.getElementById('playerArtist');
 const playerAlbum = document.getElementById('playerAlbum');
 const mainAudio = document.getElementById('mainAudio');
 
-// Modal Elements
-const downloadModal = document.getElementById('downloadModal');
-const modalTrackInfo = document.getElementById('modalTrackInfo');
-const modalConfirmBtn = document.getElementById('modalConfirmBtn');
-
 let currentTrackData = null;
 
 function escapeHtml(value = '') {
@@ -99,31 +94,47 @@ async function openSongPlayer(songPid) {
   }
 }
 
-function openDownloadModal(quality) {
+// ASYNC BLOB DOWNLOAD (WORKS 100% OF THE TIME ON MOBILE CHROME)
+async function downloadDirect(quality, btnElement) {
   if (!currentTrackData || !currentTrackData.links[quality]) {
-    alert('Link not ready');
+    alert('Download link not ready');
     return;
   }
 
+  const origHTML = btnElement.innerHTML;
+  btnElement.innerHTML = `<span>⏳ ...</span><small>Saving</small>`;
+  btnElement.style.pointerEvents = 'none';
+
   const cdnUrl = currentTrackData.links[quality];
   const safeTitle = currentTrackData.title.replace(/[^\w\s.-]/g, '').trim() || 'song';
+  const filename = `${safeTitle}_${quality}kbps.mp4`;
+
   const downloadUrl = `/api?action=download&url=${encodeURIComponent(cdnUrl)}&filename=${encodeURIComponent(safeTitle)}&quality=${encodeURIComponent(quality + 'kbps')}`;
 
-  modalTrackInfo.textContent = `${currentTrackData.title} (${quality} kbps)`;
-  modalConfirmBtn.href = downloadUrl;
+  try {
+    const response = await fetch(downloadUrl);
+    if (!response.ok) throw new Error('Download failed');
 
-  downloadModal.style.display = 'flex';
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    
+    setTimeout(() => {
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(blobUrl);
+    }, 1000);
+  } catch (e) {
+    alert('Download error: ' + e.message);
+  } finally {
+    btnElement.innerHTML = origHTML;
+    btnElement.style.pointerEvents = 'auto';
+  }
 }
-
-function closeDownloadModal() {
-  downloadModal.style.display = 'none';
-}
-
-modalConfirmBtn.addEventListener('click', () => {
-  setTimeout(() => {
-    closeDownloadModal();
-  }, 300);
-});
 
 backBtn.addEventListener('click', () => {
   mainAudio.pause();
