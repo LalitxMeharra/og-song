@@ -97,7 +97,7 @@ async function openSongPlayer(songPid) {
   }
 }
 
-function triggerDownload(quality) {
+async function triggerDownload(quality) {
   if (!currentTrackData || !currentTrackData.links[quality]) {
     alert('Download link not ready!');
     return;
@@ -107,19 +107,41 @@ function triggerDownload(quality) {
   const safeTitle = currentTrackData.title.replace(/[^a-zA-Z0-9_\- ]/g, '').trim() || 'song';
   const filename = `${safeTitle}_${quality}kbps.mp4`;
 
-  // Backend download proxy URL
-  const proxyDownloadUrl = `/api/download?action=download&url=${encodeURIComponent(cdnUrl)}&filename=${encodeURIComponent(filename)}`;
-  
-  // Non-blocking background iframe download trigger
-  const iframe = document.createElement('iframe');
-  iframe.style.display = 'none';
-  iframe.src = proxyDownloadUrl;
-  document.body.appendChild(iframe);
+  // Visual status on button
+  const originalHeading = document.querySelector('.dl-heading').textContent;
+  document.querySelector('.dl-heading').textContent = `⏳ Downloading ${quality}kbps...`;
 
-  // Clean iframe after trigger to keep DOM fresh
-  setTimeout(() => {
-    document.body.removeChild(iframe);
-  }, 4000);
+  try {
+    // Direct Client-side Stream Fetch & Blob Creation
+    const response = await fetch(cdnUrl);
+    if (!response.ok) throw new Error('CDN download blocked');
+
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+
+    setTimeout(() => {
+      window.URL.revokeObjectURL(blobUrl);
+      document.body.removeChild(a);
+      document.querySelector('.dl-heading').textContent = '⚡ Direct Downloads';
+    }, 1000);
+  } catch (err) {
+    // Direct Anchor Tag Fallback without freezing JS state
+    const a = document.createElement('a');
+    a.href = cdnUrl;
+    a.download = filename;
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    document.querySelector('.dl-heading').textContent = '⚡ Direct Downloads';
+  }
 }
 
 backBtn.addEventListener('click', () => {
