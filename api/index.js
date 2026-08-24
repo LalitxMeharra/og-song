@@ -1,4 +1,7 @@
-// Lightweight pure-JS DES-ECB Engine (Zero OpenSSL / Deprecation bugs)
+import https from 'https';
+import http from 'http';
+
+// Lightweight pure-JS DES-ECB Engine
 const DES_KEY_STRING = '38346591';
 
 function desDecipher(encryptedBytes, keyBytes) {
@@ -205,14 +208,46 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const { q, pid, song_pids, songId, action } = req.query;
+  const { q, pid, song_pids, songId, action, url: downloadUrl, filename } = req.query;
 
   const headers = {
     'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
     'Referer': 'https://www.jiosaavn.com/'
   };
 
-  // 1. DETAILS & DOWNLOAD LINKS
+  // 1. STREAMING PROXY DOWNLOAD PIPELINE
+  if (action === 'download' && downloadUrl) {
+    return new Promise((resolve) => {
+      const client = downloadUrl.startsWith('https') ? https : http;
+      
+      const safeFilename = (filename || 'song.mp4').replace(/[^a-zA-Z0-9._-]/g, '_');
+      
+      client.get(downloadUrl, { headers }, (streamRes) => {
+        if (streamRes.statusCode !== 200) {
+          res.status(streamRes.statusCode).end();
+          return resolve();
+        }
+
+        res.setHeader('Content-Type', 'audio/mp4');
+        res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
+        if (streamRes.headers['content-length']) {
+          res.setHeader('Content-Length', streamRes.headers['content-length']);
+        }
+
+        streamRes.pipe(res);
+        streamRes.on('end', () => resolve());
+        streamRes.on('error', () => {
+          res.status(500).end();
+          resolve();
+        });
+      }).on('error', (err) => {
+        res.status(500).json({ error: err.message });
+        resolve();
+      });
+    });
+  }
+
+  // 2. DETAILS & STREAM/DOWNLOAD LINKS
   if (pid || song_pids || songId || action === 'details') {
     let targetPid = String(pid || song_pids || songId || '').trim();
     if (targetPid.includes(',')) targetPid = targetPid.split(',')[0].trim();
@@ -248,7 +283,7 @@ export default async function handler(req, res) {
 
       const encryptedUrl = songData.encrypted_media_url || songData.more_info?.encrypted_media_url;
       if (!encryptedUrl) {
-        return res.status(404).json({ error: 'Encrypted URL not found in metadata' });
+        return res.status(404).json({ error: 'Encrypted URL not found' });
       }
 
       const decryptedUrl = decryptUrl(encryptedUrl);
@@ -278,7 +313,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // 2. SEARCH HANDLER
+  // 3. SEARCH HANDLER
   if (!q) {
     return res.status(400).json({ error: 'Missing search query' });
   }
