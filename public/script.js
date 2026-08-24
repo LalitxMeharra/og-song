@@ -13,8 +13,10 @@ const playerArtist = document.getElementById('playerArtist');
 const playerAlbum = document.getElementById('playerAlbum');
 const mainAudio = document.getElementById('mainAudio');
 
-let currentTrackData = null;
-const activeDownloads = new Set();
+// Download Anchors
+const btn320 = document.getElementById('btn320');
+const btn160 = document.getElementById('btn160');
+const btn96 = document.getElementById('btn96');
 
 function escapeHtml(value = '') {
   return String(value).replace(/[&<>'"]/g, (char) => ({
@@ -44,7 +46,7 @@ async function searchSongs(query) {
   resultsEl.innerHTML = '';
 
   try {
-    const response = await fetch(`/api/index?q=${encodeURIComponent(query)}`);
+    const response = await fetch(`/api?action=search&q=${encodeURIComponent(query)}`);
     const data = await response.json();
 
     if (!response.ok) throw new Error(data.error || 'Search failed');
@@ -68,25 +70,31 @@ async function openSongPlayer(songPid) {
   statusEl.textContent = 'Decrypting & Loading Track...';
 
   try {
-    const res = await fetch(`/api/index?action=details&pid=${encodeURIComponent(songPid)}`);
+    const res = await fetch(`/api?action=details&pid=${encodeURIComponent(songPid)}`);
     const data = await res.json();
 
     if (!res.ok || !data.success) {
       throw new Error(data.error || 'Failed to get song stream');
     }
 
-    currentTrackData = data;
-
-    // Fill UI
+    // Fill UI Info
     playerCover.src = data.image || '';
     playerTitle.textContent = data.title;
     playerArtist.textContent = data.artist;
     playerAlbum.textContent = data.album;
     
-    // Play Stream
+    // Play Stream (320kbps or fallback 160kbps)
     mainAudio.src = data.links['320'] || data.links['160'];
     mainAudio.play();
 
+    // Generate Direct Native Proxy Download Links
+    const safeTitle = data.title.replace(/[^\w\s.-]/g, '').trim() || 'song';
+    
+    btn320.href = `/api?action=download&url=${encodeURIComponent(data.links['320'])}&filename=${encodeURIComponent(safeTitle)}&quality=320kbps`;
+    btn160.href = `/api?action=download&url=${encodeURIComponent(data.links['160'])}&filename=${encodeURIComponent(safeTitle)}&quality=160kbps`;
+    btn96.href = `/api?action=download&url=${encodeURIComponent(data.links['96'])}&filename=${encodeURIComponent(safeTitle)}&quality=96kbps`;
+
+    // Switch View
     searchView.style.display = 'none';
     playerView.style.display = 'flex';
     window.scrollTo(0, 0);
@@ -94,40 +102,6 @@ async function openSongPlayer(songPid) {
     alert(`Error: ${err.message}`);
   } finally {
     statusEl.textContent = '';
-  }
-}
-
-// PROGRAMMATIC ATTACHMENT DOWNLOAD (NO TAB NAVIGATION, NO FREEZE)
-function triggerDownload(quality, btnEl) {
-  if (!currentTrackData || !currentTrackData.links[quality]) {
-    alert('Download link not ready!');
-    return;
-  }
-
-  const cdnUrl = currentTrackData.links[quality];
-  const safeTitle = currentTrackData.title.replace(/[^\w\s.-]/g, '').trim() || 'song';
-  const key = `${safeTitle}_${quality}`;
-
-  if (activeDownloads.has(key)) return;
-  activeDownloads.add(key);
-
-  const proxyUrl = `/api/index?action=download&url=${encodeURIComponent(cdnUrl)}&filename=${encodeURIComponent(safeTitle)}&quality=${encodeURIComponent(quality + 'kbps')}`;
-
-  try {
-    const link = document.createElement('a');
-    link.href = proxyUrl;
-    link.download = `${safeTitle}_${quality}kbps.mp4`;
-    link.rel = 'noopener';
-    link.style.display = 'none';
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-  } catch (err) {
-    console.error('Download error:', err);
-  } finally {
-    setTimeout(() => {
-      activeDownloads.delete(key);
-    }, 1500);
   }
 }
 
