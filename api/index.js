@@ -213,7 +213,7 @@ export default async function handler(req, res) {
     'Referer': 'https://www.jiosaavn.com/'
   };
 
-  // 1. STREAMING PROXY DOWNLOAD (CLAUDE PATTERN WITH ZERO MEMORY BUFFER)
+  // 1. STREAMING PROXY DOWNLOAD PIPELINE
   if (action === 'download') {
     if (!downloadUrl) return res.status(400).json({ error: 'Missing url parameter' });
 
@@ -234,7 +234,7 @@ export default async function handler(req, res) {
       });
 
       if (!upstream.ok || !upstream.body) {
-        return res.status(502).json({ error: 'Upstream stream failed' });
+        return res.status(502).json({ error: 'Upstream fetch failed' });
       }
 
       const contentType = upstream.headers.get('content-type') || 'audio/mp4';
