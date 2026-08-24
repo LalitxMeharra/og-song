@@ -1,88 +1,145 @@
-const JIOSAAVN_AUTOCOMPLETE = 'https://www.jiosaavn.com/api.php';
+const form = document.getElementById('searchForm');
+const queryInput = document.getElementById('query');
+const statusEl = document.getElementById('status');
+const resultsEl = document.getElementById('results');
 
-function cleanText(value = '') {
-  return String(value)
-    .replace(/<[^>]*>/g, '')
-    .replace(/&quot;/g, '"')
-    .replace(/&#039;/g, "'")
-    .trim();
+// Player View Elements
+const searchView = document.getElementById('searchView');
+const playerView = document.getElementById('playerView');
+const backBtn = document.getElementById('backBtn');
+const playerCover = document.getElementById('playerCover');
+const playerTitle = document.getElementById('playerTitle');
+const playerArtist = document.getElementById('playerArtist');
+const playerAlbum = document.getElementById('playerAlbum');
+const mainAudio = document.getElementById('mainAudio');
+
+let currentTrackData = null;
+
+function escapeHtml(value = '') {
+  return String(value).replace(/[&<>'"]/g, (char) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+  }[char]));
 }
 
-function toArray(value) {
-  return Array.isArray(value) ? value : [];
+function renderResult(item) {
+  const title = escapeHtml(item.title || 'Untitled');
+  const artist = escapeHtml(item.artist || 'Unknown');
+  const image = item.image ? escapeHtml(item.image) : '';
+  const pid = escapeHtml(item.pid);
+
+  return `
+    <article class="card" onclick="openSongPlayer('${pid}')">
+      ${image ? `<img class="cover" src="${image}" alt="" loading="lazy">` : `<div class="cover"></div>`}
+      <div class="info">
+        <h2 class="title">${title}</h2>
+        <p class="meta">${artist}</p>
+      </div>
+      <button class="play-action-btn">▶ Play</button>
+    </article>`;
 }
 
-function parseSongPids(value) {
-  return String(value || '')
-    .split(',')
-    .map((pid) => pid.trim())
-    .filter(Boolean);
-}
-
-function normalizeItem(item, fallbackType) {
-  const info = item?.more_info || {};
-  const songPids = parseSongPids(info.song_pids || (fallbackType === 'song' ? item?.id : ''));
-
-  return {
-    id: String(item?.id || ''),
-    type: item?.type || fallbackType,
-    title: cleanText(item?.title),
-    album: cleanText(item?.album || ''),
-    artist: cleanText(info.primary_artists || item?.music || item?.description || ''),
-    image: String(item?.image || ''),
-    url: String(item?.url || ''),
-    language: cleanText(info.language || ''),
-    songPids
-  };
-}
-
-export default async function handler(req, res) {
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
-
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  const query = String(req.query?.q || '').trim();
-  if (!query) {
-    return res.status(400).json({ error: 'Missing search query. Use ?q=song+name' });
-  }
+async function searchSongs(query) {
+  statusEl.textContent = 'Searching...';
+  resultsEl.innerHTML = '';
 
   try {
-    const url = new URL(JIOSAAVN_AUTOCOMPLETE);
-    url.searchParams.set('__call', 'autocomplete.get');
-    url.searchParams.set('_format', 'json');
-    url.searchParams.set('_marker', '0');
-    url.searchParams.set('cc', 'in');
-    url.searchParams.set('includemetatags', '1');
-    url.searchParams.set('query', query);
+    const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+    const data = await response.json();
 
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0',
-        'Accept': 'application/json,text/plain,*/*'
-      }
-    });
+    if (!response.ok) throw new Error(data.error || 'Search failed');
 
-    if (!response.ok) {
-      throw new Error(`Upstream returned ${response.status}`);
+    const results = Array.isArray(data.results) ? data.results : [];
+    if (!results.length) {
+      statusEl.textContent = 'No results found.';
+      resultsEl.innerHTML = '<div class="empty">Try another song or artist name.</div>';
+      return;
     }
 
-    const data = await response.json();
-    const songs = toArray(data?.songs?.data).map((item) => normalizeItem(item, 'song'));
-    const albums = toArray(data?.albums?.data).map((item) => normalizeItem(item, 'album'));
-
-    return res.status(200).json({
-      query,
-      results: [...songs, ...albums],
-      source: 'autocomplete'
-    });
+    statusEl.textContent = `${results.length} result(s) found for “${data.query}”.`;
+    resultsEl.innerHTML = results.map(renderResult).join('');
   } catch (error) {
-    console.error('Search error:', error);
-    return res.status(502).json({
-      error: 'Search service temporarily unavailable',
-      detail: error.message
-    });
+    statusEl.textContent = `Error: ${error.message}`;
+    resultsEl.innerHTML = '<div class="empty">Unable to fetch songs. Try again.</div>';
   }
 }
+
+async function openSongPlayer(songPid) {
+  statusEl.textContent = 'Decrypting & Loading Track...';
+
+  try {
+    const res = await fetch(`/api/details?pid=${encodeURIComponent(songPid)}`);
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Failed to get song stream');
+    }
+
+    currentTrackData = data;
+
+    // Fill UI
+    playerCover.src = data.image || '';
+    playerTitle.textContent = data.title;
+    playerArtist.textContent = data.artist;
+    playerAlbum.textContent = data.album;
+    
+    // Load full decoded stream
+    mainAudio.src = data.links['320'] || data.links['160'];
+    mainAudio.play();
+
+    // Toggle Views
+    searchView.style.display = 'none';
+    playerView.style.display = 'flex';
+    window.scrollTo(0, 0);
+  } catch (err) {
+    alert(`Error: ${err.message}`);
+  } finally {
+    statusEl.textContent = '';
+  }
+}
+
+async function triggerDownload(quality) {
+  if (!currentTrackData || !currentTrackData.links[quality]) {
+    alert('Download link not ready!');
+    return;
+  }
+
+  const downloadUrl = currentTrackData.links[quality];
+  const safeTitle = currentTrackData.title.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const filename = `${safeTitle}_${quality}kbps.mp4`;
+
+  try {
+    const response = await fetch(downloadUrl);
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+
+    window.URL.revokeObjectURL(blobUrl);
+    document.body.removeChild(a);
+  } catch (e) {
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = filename;
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+}
+
+backBtn.addEventListener('click', () => {
+  mainAudio.pause();
+  playerView.style.display = 'none';
+  searchView.style.display = 'block';
+});
+
+form.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const query = queryInput.value.trim();
+  if (query) searchSongs(query);
+});
