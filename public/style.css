@@ -25,14 +25,12 @@ body {
   margin: 0;
 }
 
-/* Container */
 .app {
   width: min(800px, calc(100% - 32px));
   margin: 0 auto;
   padding: 48px 0 60px;
 }
 
-/* Header */
 header {
   text-align: center;
   margin-bottom: 28px;
@@ -59,7 +57,6 @@ h1 {
   font-size: 0.95rem;
 }
 
-/* Search Box */
 .search-box {
   display: flex;
   gap: 10px;
@@ -98,7 +95,6 @@ h1 {
   transform: translateY(-1px);
 }
 
-/* Status & Empty */
 .status {
   min-height: 24px;
   color: var(--text-muted);
@@ -114,7 +110,6 @@ h1 {
   color: var(--text-muted);
 }
 
-/* Song Results */
 .results {
   display: grid;
   gap: 12px;
@@ -187,7 +182,6 @@ h1 {
   color: #080b12;
 }
 
-/* Full Dedicated Player UI */
 .player-overlay {
   display: flex;
   justify-content: center;
@@ -272,7 +266,6 @@ h1 {
   border-radius: 30px;
 }
 
-/* Download Section */
 .download-section {
   border-top: 1px solid var(--border-color);
   padding-top: 20px;
@@ -303,9 +296,9 @@ h1 {
   background: #0f172a;
   border: 1px solid var(--border-color);
   color: var(--text-main);
-  text-decoration: none; /* Removes Underline */
+  text-decoration: none;
   outline: none;
-  user-select: none;
+  cursor: pointer;
   transition: transform 0.2s, background 0.2s, border-color 0.2s;
 }
 
@@ -313,14 +306,12 @@ h1 {
   font-size: 0.92rem;
   font-weight: 800;
   color: var(--accent-color);
-  text-decoration: none; /* Removes Underline */
 }
 
 .dl-btn small {
   font-size: 0.72rem;
   color: var(--text-muted);
   margin-top: 3px;
-  text-decoration: none; /* Removes Underline */
 }
 
 .dl-btn:hover {
@@ -334,27 +325,85 @@ h1 {
   color: #080b12;
 }
 
-/* Mobile Responsive */
+/* Modal Styling */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 20px;
+}
+
+.modal-card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 20px;
+  padding: 24px;
+  max-width: 360px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+}
+
+.modal-card h3 {
+  font-size: 1.2rem;
+  margin-bottom: 8px;
+}
+
+.modal-card p {
+  color: #94a3b8;
+  font-size: 0.9rem;
+  margin-bottom: 20px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-cancel, .btn-confirm {
+  flex: 1;
+  padding: 12px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.btn-cancel {
+  background: transparent;
+  border: 1px solid #334155;
+  color: #f8fafc;
+}
+
+.btn-confirm {
+  background: var(--accent-color);
+  border: 1px solid var(--accent-color);
+  color: #080b12;
+}
+
 @media (max-width: 600px) {
   .app {
     width: min(100% - 20px, 800px);
     padding-top: 32px;
   }
-  
   .card {
     padding: 10px 12px;
     gap: 12px;
   }
-
   .cover {
     width: 52px;
     height: 52px;
   }
-
   .title {
     font-size: 0.95rem;
   }
-
   .player-cover {
     width: 170px;
     height: 170px;
