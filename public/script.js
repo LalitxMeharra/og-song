@@ -13,10 +13,12 @@ const playerArtist = document.getElementById('playerArtist');
 const playerAlbum = document.getElementById('playerAlbum');
 const mainAudio = document.getElementById('mainAudio');
 
-// Download Anchors
-const btn320 = document.getElementById('btn320');
-const btn160 = document.getElementById('btn160');
-const btn96 = document.getElementById('btn96');
+// Modal Elements
+const downloadModal = document.getElementById('downloadModal');
+const modalTrackInfo = document.getElementById('modalTrackInfo');
+const modalConfirmBtn = document.getElementById('modalConfirmBtn');
+
+let currentTrackData = null;
 
 function escapeHtml(value = '') {
   return String(value).replace(/[&<>'"]/g, (char) => ({
@@ -77,24 +79,16 @@ async function openSongPlayer(songPid) {
       throw new Error(data.error || 'Failed to get song stream');
     }
 
-    // Fill UI Info
+    currentTrackData = data;
+
     playerCover.src = data.image || '';
     playerTitle.textContent = data.title;
     playerArtist.textContent = data.artist;
     playerAlbum.textContent = data.album;
     
-    // Play Stream (320kbps or fallback 160kbps)
     mainAudio.src = data.links['320'] || data.links['160'];
     mainAudio.play();
 
-    // Generate Direct Native Proxy Download Links
-    const safeTitle = data.title.replace(/[^\w\s.-]/g, '').trim() || 'song';
-    
-    btn320.href = `/api?action=download&url=${encodeURIComponent(data.links['320'])}&filename=${encodeURIComponent(safeTitle)}&quality=320kbps`;
-    btn160.href = `/api?action=download&url=${encodeURIComponent(data.links['160'])}&filename=${encodeURIComponent(safeTitle)}&quality=160kbps`;
-    btn96.href = `/api?action=download&url=${encodeURIComponent(data.links['96'])}&filename=${encodeURIComponent(safeTitle)}&quality=96kbps`;
-
-    // Switch View
     searchView.style.display = 'none';
     playerView.style.display = 'flex';
     window.scrollTo(0, 0);
@@ -104,6 +98,32 @@ async function openSongPlayer(songPid) {
     statusEl.textContent = '';
   }
 }
+
+function openDownloadModal(quality) {
+  if (!currentTrackData || !currentTrackData.links[quality]) {
+    alert('Link not ready');
+    return;
+  }
+
+  const cdnUrl = currentTrackData.links[quality];
+  const safeTitle = currentTrackData.title.replace(/[^\w\s.-]/g, '').trim() || 'song';
+  const downloadUrl = `/api?action=download&url=${encodeURIComponent(cdnUrl)}&filename=${encodeURIComponent(safeTitle)}&quality=${encodeURIComponent(quality + 'kbps')}`;
+
+  modalTrackInfo.textContent = `${currentTrackData.title} (${quality} kbps)`;
+  modalConfirmBtn.href = downloadUrl;
+
+  downloadModal.style.display = 'flex';
+}
+
+function closeDownloadModal() {
+  downloadModal.style.display = 'none';
+}
+
+modalConfirmBtn.addEventListener('click', () => {
+  setTimeout(() => {
+    closeDownloadModal();
+  }, 300);
+});
 
 backBtn.addEventListener('click', () => {
   mainAudio.pause();
