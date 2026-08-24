@@ -13,7 +13,10 @@ const playerArtist = document.getElementById('playerArtist');
 const playerAlbum = document.getElementById('playerAlbum');
 const mainAudio = document.getElementById('mainAudio');
 
-let currentTrackData = null;
+// Download Anchors
+const btn320 = document.getElementById('btn320');
+const btn160 = document.getElementById('btn160');
+const btn96 = document.getElementById('btn96');
 
 function escapeHtml(value = '') {
   return String(value).replace(/[&<>'"]/g, (char) => ({
@@ -74,16 +77,29 @@ async function openSongPlayer(songPid) {
       throw new Error(data.error || 'Failed to get song stream');
     }
 
-    currentTrackData = data;
-
+    // Fill UI Info
     playerCover.src = data.image || '';
     playerTitle.textContent = data.title;
     playerArtist.textContent = data.artist;
     playerAlbum.textContent = data.album;
     
+    // Play Stream (320kbps fallback 160kbps)
     mainAudio.src = data.links['320'] || data.links['160'];
     mainAudio.play();
 
+    // Set DIRECT CDN URLS on buttons (No Vercel proxy bottleneck)
+    const safeTitle = data.title.replace(/[^\w\s.-]/g, '').trim() || 'song';
+    
+    btn320.href = data.links['320'];
+    btn320.setAttribute('download', `${safeTitle}_320kbps.mp4`);
+
+    btn160.href = data.links['160'];
+    btn160.setAttribute('download', `${safeTitle}_160kbps.mp4`);
+
+    btn96.href = data.links['96'];
+    btn96.setAttribute('download', `${safeTitle}_96kbps.mp4`);
+
+    // Switch View
     searchView.style.display = 'none';
     playerView.style.display = 'flex';
     window.scrollTo(0, 0);
@@ -92,45 +108,6 @@ async function openSongPlayer(songPid) {
   } finally {
     statusEl.textContent = '';
   }
-}
-
-// MULTI-DOWNLOAD ENGINE FOR ANDROID/DESKTOP
-function downloadDirect(quality, btnElement) {
-  if (!currentTrackData || !currentTrackData.links[quality]) {
-    alert('Download link not ready');
-    return;
-  }
-
-  // 1. Temporary visual indicator
-  const origHTML = btnElement.innerHTML;
-  btnElement.innerHTML = `<span>⏳ ...</span><small>Starting</small>`;
-  btnElement.style.opacity = '0.7';
-
-  const cdnUrl = currentTrackData.links[quality];
-  const safeTitle = currentTrackData.title.replace(/[^\w\s.-]/g, '').trim() || 'song';
-  
-  // 2. Anti-cache unique timestamp to avoid mobile socket reuse lock
-  const downloadUrl = `/api?action=download&url=${encodeURIComponent(cdnUrl)}&filename=${encodeURIComponent(safeTitle)}&quality=${encodeURIComponent(quality + 'kbps')}&_t=${Date.now()}`;
-
-  // 3. Isolated Hidden iFrame Launcher (Bypasses Chrome JS Lock)
-  const iframe = document.createElement('iframe');
-  iframe.style.position = 'absolute';
-  iframe.style.width = '0px';
-  iframe.style.height = '0px';
-  iframe.style.border = '0';
-  iframe.style.display = 'none';
-  iframe.src = downloadUrl;
-
-  document.body.appendChild(iframe);
-
-  // 4. Auto-destroy iframe and restore button immediately
-  setTimeout(() => {
-    if (iframe.parentNode) {
-      document.body.removeChild(iframe);
-    }
-    btnElement.innerHTML = origHTML;
-    btnElement.style.opacity = '1';
-  }, 2000);
 }
 
 backBtn.addEventListener('click', () => {
