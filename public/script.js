@@ -46,7 +46,7 @@ async function searchSongs(query) {
   resultsEl.innerHTML = '';
 
   try {
-    const response = await fetch(`/api?action=search&q=${encodeURIComponent(query)}`);
+    const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
     const data = await response.json();
 
     if (!response.ok) throw new Error(data.error || 'Search failed');
@@ -70,7 +70,7 @@ async function openSongPlayer(songPid) {
   statusEl.textContent = 'Decrypting & Loading Track...';
 
   try {
-    const res = await fetch(`/api?action=details&pid=${encodeURIComponent(songPid)}`);
+    const res = await fetch(`/api/details?pid=${encodeURIComponent(songPid)}`);
     const data = await res.json();
 
     if (!res.ok || !data.success) {
@@ -87,12 +87,12 @@ async function openSongPlayer(songPid) {
     mainAudio.src = data.links['320'] || data.links['160'];
     mainAudio.play();
 
-    // Set Direct Working Backend Proxy Links
+    // Direct Native Download Proxy URLs
     const safeTitle = data.title.replace(/[^\w\s.-]/g, '').trim() || 'song';
     
-    btn320.href = `/api?action=download&url=${encodeURIComponent(data.links['320'])}&filename=${encodeURIComponent(safeTitle)}&quality=320kbps`;
-    btn160.href = `/api?action=download&url=${encodeURIComponent(data.links['160'])}&filename=${encodeURIComponent(safeTitle)}&quality=160kbps`;
-    btn96.href = `/api?action=download&url=${encodeURIComponent(data.links['96'])}&filename=${encodeURIComponent(safeTitle)}&quality=96kbps`;
+    btn320.href = `/api/download?url=${encodeURIComponent(data.links['320'])}&filename=${encodeURIComponent(safeTitle)}&quality=320kbps`;
+    btn160.href = `/api/download?url=${encodeURIComponent(data.links['160'])}&filename=${encodeURIComponent(safeTitle)}&quality=160kbps`;
+    btn96.href = `/api/download?url=${encodeURIComponent(data.links['96'])}&filename=${encodeURIComponent(safeTitle)}&quality=96kbps`;
 
     // Switch View
     searchView.style.display = 'none';
@@ -118,4 +118,3 @@ form.addEventListener('submit', (event) => {
   const query = queryInput.value.trim();
   if (query) searchSongs(query);
 });
-'
