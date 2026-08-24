@@ -286,7 +286,12 @@ h1 {
   gap: 10px;
 }
 
-.dl-btn {
+/* Fixed Underlines & Clean Links */
+.dl-btn, 
+.dl-btn:link, 
+.dl-btn:visited, 
+.dl-btn:hover, 
+.dl-btn:active {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -296,9 +301,8 @@ h1 {
   background: #0f172a;
   border: 1px solid var(--border-color);
   color: var(--text-main);
-  text-decoration: none;
+  text-decoration: none !important;
   outline: none;
-  cursor: pointer;
   transition: transform 0.2s, background 0.2s, border-color 0.2s;
 }
 
@@ -306,12 +310,14 @@ h1 {
   font-size: 0.92rem;
   font-weight: 800;
   color: var(--accent-color);
+  text-decoration: none !important;
 }
 
 .dl-btn small {
   font-size: 0.72rem;
   color: var(--text-muted);
   margin-top: 3px;
+  text-decoration: none !important;
 }
 
 .dl-btn:hover {
@@ -322,70 +328,7 @@ h1 {
 
 .dl-btn:hover span,
 .dl-btn:hover small {
-  color: #080b12;
-}
-
-/* Modal Styling */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  padding: 20px;
-}
-
-.modal-card {
-  background: #1e293b;
-  border: 1px solid #334155;
-  border-radius: 20px;
-  padding: 24px;
-  max-width: 360px;
-  width: 100%;
-  text-align: center;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.6);
-}
-
-.modal-card h3 {
-  font-size: 1.2rem;
-  margin-bottom: 8px;
-}
-
-.modal-card p {
-  color: #94a3b8;
-  font-size: 0.9rem;
-  margin-bottom: 20px;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 12px;
-}
-
-.btn-cancel, .btn-confirm {
-  flex: 1;
-  padding: 12px;
-  border-radius: 12px;
-  font-weight: 700;
-  font-size: 0.9rem;
-  cursor: pointer;
-  text-decoration: none;
-  display: inline-block;
-}
-
-.btn-cancel {
-  background: transparent;
-  border: 1px solid #334155;
-  color: #f8fafc;
-}
-
-.btn-confirm {
-  background: var(--accent-color);
-  border: 1px solid var(--accent-color);
-  color: #080b12;
+  color: #080b12 !important;
 }
 
 @media (max-width: 600px) {
