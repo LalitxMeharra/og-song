@@ -207,15 +207,23 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', '*');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const { action, q, pid, id, url: downloadUrl, filename, quality } = req.query;
+  const urlObj = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  const pathname = urlObj.pathname;
+  
+  const q = req.query.q || req.query.query || urlObj.searchParams.get('q') || urlObj.searchParams.get('query');
+  const pid = req.query.pid || req.query.id || req.query.song_pids || urlObj.searchParams.get('pid') || urlObj.searchParams.get('id');
+  const downloadUrl = req.query.url || urlObj.searchParams.get('url');
+  const filename = req.query.filename || urlObj.searchParams.get('filename');
+  const quality = req.query.quality || urlObj.searchParams.get('quality');
+  const action = req.query.action || urlObj.searchParams.get('action');
 
   const headers = {
     'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36',
     'Referer': 'https://www.jiosaavn.com/'
   };
 
-  // 1. STREAMING DOWNLOAD PIPELINE
-  if (action === 'download') {
+  // 1. DOWNLOAD STREAM ROUTE
+  if (pathname.includes('/download') || action === 'download') {
     if (!downloadUrl) return res.status(400).json({ error: 'Missing url parameter' });
 
     let cdnUrl;
@@ -243,8 +251,6 @@ export default async function handler(req, res) {
       res.setHeader('Content-Type', 'application/octet-stream');
       res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(finalName)}"; filename*=UTF-8''${encodeURIComponent(finalName)}`);
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      res.setHeader('Pragma', 'no-cache');
-      res.setHeader('Expires', '0');
       if (contentLength) res.setHeader('Content-Length', contentLength);
 
       const nodeStream = Readable.fromWeb(upstream.body);
@@ -258,9 +264,9 @@ export default async function handler(req, res) {
     }
   }
 
-  // 2. DETAILS
-  if (action === 'details' || pid || id) {
-    let targetPid = String(pid || id || '').trim();
+  // 2. SONG DETAILS ROUTE
+  if (pathname.includes('/details') || action === 'details' || (pid && !q)) {
+    let targetPid = String(pid || '').trim();
     if (targetPid.includes(',')) targetPid = targetPid.split(',')[0].trim();
 
     try {
@@ -301,12 +307,14 @@ export default async function handler(req, res) {
     }
   }
 
-  // 3. SEARCH
-  if (!q) return res.status(400).json({ error: 'Missing search query' });
+  // 3. SEARCH ROUTE (Handles fallback directly)
+  if (!q) {
+    return res.status(400).json({ error: 'Missing search query' });
+  }
 
   try {
-    const url = `https://www.jiosaavn.com/api.php?__call=autocomplete.get&_format=json&_marker=0&cc=in&includeMetaTags=1&query=${encodeURIComponent(q)}`;
-    const response = await fetch(url, { headers });
+    const searchUrl = `https://www.jiosaavn.com/api.php?__call=autocomplete.get&_format=json&_marker=0&cc=in&includeMetaTags=1&query=${encodeURIComponent(q)}`;
+    const response = await fetch(searchUrl, { headers });
     const data = await response.json();
 
     const results = [];
