@@ -3,26 +3,63 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#111827">
-  <title>Song Search</title>
+  <meta name="theme-color" content="#080b12">
+  <title>Song Search & Downloader</title>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <main class="app">
+  <!-- Search View -->
+  <main class="app" id="searchView">
     <header>
-      <p class="eyebrow">SONG SEARCH</p>
-      <h1>Find songs & albums</h1>
-      <p class="sub">Search results are connected to the backend through <code>/api/search?q=...</code>.</p>
+      <p class="eyebrow">HIGH QUALITY AUDIO</p>
+      <h1>Song Downloader</h1>
+      <p class="sub">Search any song to play and download in 320 kbps</p>
     </header>
 
     <form id="searchForm" class="search-box">
-      <input id="query" name="q" type="search" placeholder="Search a song or album..." autocomplete="off" required>
+      <input id="query" name="q" type="search" placeholder="Search song name..." autocomplete="off" required>
       <button type="submit">Search</button>
     </form>
 
     <p id="status" class="status" aria-live="polite">Type a song name and search.</p>
-    <section id="results" class="results" aria-live="polite"></section>
+    <section id="results" class="results"></section>
   </main>
+
+  <!-- Dedicated Player & Download Modal View -->
+  <div id="playerView" class="player-overlay" style="display: none;">
+    <div class="player-container">
+      <button id="backBtn" class="back-btn">← Back to Search</button>
+      
+      <div class="player-card">
+        <img id="playerCover" class="player-cover" src="" alt="Album Art">
+        <h2 id="playerTitle" class="player-title">Song Title</h2>
+        <p id="playerArtist" class="player-artist">Artist Name</p>
+        <p id="playerAlbum" class="player-album">Album</p>
+
+        <!-- Streaming Audio Player -->
+        <audio id="mainAudio" controls class="audio-element"></audio>
+
+        <div class="download-section">
+          <p class="dl-heading">⚡ Direct Downloads</p>
+          <div class="dl-buttons">
+            <button class="dl-btn" onclick="triggerDownload('320')">
+              <span>320 kbps</span>
+              <small>Ultra HD</small>
+            </button>
+            <button class="dl-btn" onclick="triggerDownload('160')">
+              <span>160 kbps</span>
+              <small>High</small>
+            </button>
+            <button class="dl-btn" onclick="triggerDownload('96')">
+              <span>96 kbps</span>
+              <small>Data Saver</small>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="/script.js" defer></script>
 </body>
 </html>
