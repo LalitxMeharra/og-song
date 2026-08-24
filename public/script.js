@@ -107,21 +107,27 @@ function triggerDownload(quality) {
   const safeTitle = currentTrackData.title.replace(/[^a-zA-Z0-9_\- ]/g, '').trim() || 'song';
   const filename = `${safeTitle}_${quality}kbps.mp4`;
 
-  // Backend download proxy (guarantees browser download popup)
+  // Backend download proxy URL
   const proxyDownloadUrl = `/api/download?action=download&url=${encodeURIComponent(cdnUrl)}&filename=${encodeURIComponent(filename)}`;
   
-  const a = document.createElement('a');
-  a.href = proxyDownloadUrl;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  // Non-blocking background iframe download trigger
+  const iframe = document.createElement('iframe');
+  iframe.style.display = 'none';
+  iframe.src = proxyDownloadUrl;
+  document.body.appendChild(iframe);
+
+  // Clean iframe after trigger to keep DOM fresh
+  setTimeout(() => {
+    document.body.removeChild(iframe);
+  }, 4000);
 }
 
 backBtn.addEventListener('click', () => {
   mainAudio.pause();
+  mainAudio.src = '';
   playerView.style.display = 'none';
   searchView.style.display = 'block';
+  statusEl.textContent = '';
 });
 
 form.addEventListener('submit', (event) => {
