@@ -13,10 +13,8 @@ const playerArtist = document.getElementById('playerArtist');
 const playerAlbum = document.getElementById('playerAlbum');
 const mainAudio = document.getElementById('mainAudio');
 
-// Download Anchors
-const btn320 = document.getElementById('btn320');
-const btn160 = document.getElementById('btn160');
-const btn96 = document.getElementById('btn96');
+let currentTrackData = null;
+let currentBlobUrl = null; // Track current blob URL to revoke later
 
 function escapeHtml(value = '') {
   return String(value).replace(/[&<>'"]/g, (char) => ({
@@ -46,7 +44,7 @@ async function searchSongs(query) {
   resultsEl.innerHTML = '';
 
   try {
-    const response = await fetch(`/api?action=search&q=${encodeURIComponent(query)}`);
+    const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
     const data = await response.json();
 
     if (!response.ok) throw new Error(data.error || 'Search failed');
@@ -69,32 +67,33 @@ async function searchSongs(query) {
 async function openSongPlayer(songPid) {
   statusEl.textContent = 'Decrypting & Loading Track...';
 
+  // Revoke any existing blob URL to free memory
+  if (currentBlobUrl) {
+    window.URL.revokeObjectURL(currentBlobUrl);
+    currentBlobUrl = null;
+  }
+
   try {
-    const res = await fetch(`/api?action=details&pid=${encodeURIComponent(songPid)}`);
+    const res = await fetch(`/api/details?pid=${encodeURIComponent(songPid)}`);
     const data = await res.json();
 
     if (!res.ok || !data.success) {
       throw new Error(data.error || 'Failed to get song stream');
     }
 
-    // Fill UI Info
+    currentTrackData = data;
+
+    // Fill UI
     playerCover.src = data.image || '';
     playerTitle.textContent = data.title;
     playerArtist.textContent = data.artist;
     playerAlbum.textContent = data.album;
     
-    // Play Stream (320kbps fallback 160kbps)
+    // Load full decoded stream
     mainAudio.src = data.links['320'] || data.links['160'];
     mainAudio.play();
 
-    // Direct Native Backend Attachment Download Links
-    const safeTitle = data.title.replace(/[^\w\s.-]/g, '').trim() || 'song';
-    
-    btn320.href = `/api?action=download&url=${encodeURIComponent(data.links['320'])}&filename=${encodeURIComponent(safeTitle)}&quality=320kbps`;
-    btn160.href = `/api?action=download&url=${encodeURIComponent(data.links['160'])}&filename=${encodeURIComponent(safeTitle)}&quality=160kbps`;
-    btn96.href = `/api?action=download&url=${encodeURIComponent(data.links['96'])}&filename=${encodeURIComponent(safeTitle)}&quality=96kbps`;
-
-    // Switch View
+    // Toggle Views
     searchView.style.display = 'none';
     playerView.style.display = 'flex';
     window.scrollTo(0, 0);
@@ -105,12 +104,61 @@ async function openSongPlayer(songPid) {
   }
 }
 
+async function triggerDownload(quality) {
+  if (!currentTrackData || !currentTrackData.links[quality]) {
+    alert('Download link not ready!');
+    return;
+  }
+
+  const downloadUrl = currentTrackData.links[quality];
+  const safeTitle = currentTrackData.title.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const filename = `${safeTitle}_${quality}kbps.mp4`;
+
+  try {
+    // Revoke previous blob URL if exists
+    if (currentBlobUrl) {
+      window.URL.revokeObjectURL(currentBlobUrl);
+      currentBlobUrl = null;
+    }
+
+    const response = await fetch(downloadUrl);
+    const blob = await response.blob();
+    currentBlobUrl = window.URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = currentBlobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+
+    // Don't revoke immediately - browser needs time to download
+    // We'll revoke it when next download happens or player closes
+    
+    document.body.removeChild(a);
+  } catch (e) {
+    // Fallback: try direct download
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = filename;
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+}
+
+// Update back button to clean up resources
 backBtn.addEventListener('click', () => {
   mainAudio.pause();
-  mainAudio.src = '';
+  mainAudio.src = ''; // Clear audio source
+  if (currentBlobUrl) {
+    window.URL.revokeObjectURL(currentBlobUrl);
+    currentBlobUrl = null;
+  }
+  currentTrackData = null;
   playerView.style.display = 'none';
   searchView.style.display = 'block';
-  statusEl.textContent = '';
 });
 
 form.addEventListener('submit', (event) => {
@@ -118,3 +166,7 @@ form.addEventListener('submit', (event) => {
   const query = queryInput.value.trim();
   if (query) searchSongs(query);
 });
+
+// Make functions globally accessible for onclick handlers
+window.openSongPlayer = openSongPlayer;
+window.triggerDownload = triggerDownload;
