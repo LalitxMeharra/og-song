@@ -13,11 +13,15 @@ function cleanText(value = '') {
 
 function decryptUrl(encryptedUrl) {
   try {
-    let cleaned = encryptedUrl.trim();
+    if (!encryptedUrl) return null;
+
+    let cleaned = String(encryptedUrl).trim().replace(/\s+/g, '');
     let missing = cleaned.length % 4;
     if (missing) cleaned += '='.repeat(4 - missing);
 
     let encryptedBytes = Buffer.from(cleaned, 'base64');
+    
+    // Check DES 8-byte block alignment
     const remainder = encryptedBytes.length % 8;
     if (remainder !== 0) {
       encryptedBytes = encryptedBytes.subarray(0, encryptedBytes.length - remainder);
@@ -28,13 +32,16 @@ function decryptUrl(encryptedUrl) {
 
     let decrypted = Buffer.concat([decipher.update(encryptedBytes), decipher.final()]);
 
+    // PKCS7 Unpadding
     const pad = decrypted[decrypted.length - 1];
     if (pad >= 1 && pad <= 8) {
       decrypted = decrypted.subarray(0, decrypted.length - pad);
     }
 
-    return decrypted.toString('utf-8').trim();
+    const finalUrl = decrypted.toString('utf-8').trim();
+    return finalUrl.startsWith('http') ? finalUrl : null;
   } catch (e) {
+    console.error('DES Decryption Internal Error:', e);
     return null;
   }
 }
@@ -51,7 +58,7 @@ export default async function handler(req, res) {
     'Referer': 'https://www.jiosaavn.com/'
   };
 
-  // 1. DETAILS & STREAM/DOWNLOAD LINKS
+  // 1. DETAILS & DOWNLOAD LINKS
   if (pid || action === 'details') {
     const songPid = pid;
     if (!songPid) return res.status(400).json({ error: 'Song PID required' });
@@ -59,16 +66,26 @@ export default async function handler(req, res) {
     try {
       const response = await fetch(`https://www.jiosaavn.com/api.php?__call=song.getDetails&cc=in&_marker=0&_format=json&pids=${encodeURIComponent(songPid)}`, { headers });
       const data = await response.json();
-      const songData = data?.[songPid] || {};
+      
+      // Handle key as PID or first item in object
+      let songData = data?.[songPid];
+      if (!songData) {
+        const keys = Object.keys(data || {});
+        if (keys.length > 0) songData = data[keys[0]];
+      }
+
+      if (!songData) {
+        return res.status(404).json({ error: 'Song details not found' });
+      }
 
       const encryptedUrl = songData.encrypted_media_url || songData.more_info?.encrypted_media_url;
       if (!encryptedUrl) {
-        return res.status(404).json({ error: 'Encrypted media URL not found' });
+        return res.status(404).json({ error: 'Encrypted media URL not found in API response' });
       }
 
       const decryptedUrl = decryptUrl(encryptedUrl);
       if (!decryptedUrl) {
-        return res.status(500).json({ error: 'Decryption failed' });
+        return res.status(500).json({ error: 'Decryption failed: Unable to parse media stream' });
       }
 
       const basePrefix = decryptedUrl.substring(0, decryptedUrl.lastIndexOf('_'));
@@ -79,9 +96,9 @@ export default async function handler(req, res) {
         id: songPid,
         title: cleanText(songData.song || songData.title),
         artist: cleanText(songData.primary_artists || songData.more_info?.primary_artists),
-        album: cleanText(songData.album),
-        image: (songData.image || '').replace('50x50', '500x500').replace('150x150', '500x500'),
-        duration: songData.duration || '0',
+        album: cleanText(songData.album || songData.more_info?.album),
+        image: (songData.image || songData.more_info?.image || '').replace('50x50', '500x500').replace('150x150', '500x500'),
+        duration: songData.duration || songData.more_info?.duration || '0',
         links: {
           '320': `${basePrefix}_320.${ext}`,
           '160': `${basePrefix}_160.${ext}`,
@@ -89,6 +106,7 @@ export default async function handler(req, res) {
         }
       });
     } catch (error) {
+      console.error('API Handler Error:', error);
       return res.status(500).json({ error: error.message });
     }
   }
@@ -107,7 +125,7 @@ export default async function handler(req, res) {
       const info = item?.more_info || {};
       return {
         id: String(item.id || ''),
-        pid: String(item.id || ''), // Direct song id is the PID
+        pid: String(item.id || ''),
         title: cleanText(item.title),
         artist: cleanText(info.primary_artists || item.description || 'Unknown'),
         album: cleanText(item.album || 'Single'),
