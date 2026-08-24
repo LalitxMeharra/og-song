@@ -205,32 +205,14 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const { q, pid, song_pids, songId, action, url: downloadUrl, filename } = req.query;
+  const { q, pid, song_pids, songId, action } = req.query;
 
   const headers = {
     'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
     'Referer': 'https://www.jiosaavn.com/'
   };
 
-  // 1. PROXY DOWNLOAD (Forces attachment download, fixes black screen)
-  if (action === 'download' && downloadUrl) {
-    try {
-      const audioRes = await fetch(downloadUrl, { headers });
-      if (!audioRes.ok) throw new Error('Failed to fetch from CDN');
-
-      const fileBuffer = Buffer.from(await audioRes.arrayBuffer());
-      const safeFilename = encodeURIComponent(filename || 'song.mp4');
-
-      res.setHeader('Content-Type', 'audio/mp4');
-      res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"; filename*=UTF-8''${safeFilename}`);
-      res.setHeader('Content-Length', fileBuffer.length);
-      return res.status(200).send(fileBuffer);
-    } catch (e) {
-      return res.status(500).json({ error: 'Download stream error: ' + e.message });
-    }
-  }
-
-  // 2. DETAILS & DOWNLOAD LINKS
+  // 1. DETAILS & DOWNLOAD LINKS
   if (pid || song_pids || songId || action === 'details') {
     let targetPid = String(pid || song_pids || songId || '').trim();
     if (targetPid.includes(',')) targetPid = targetPid.split(',')[0].trim();
@@ -296,7 +278,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // 3. SEARCH HANDLER
+  // 2. SEARCH HANDLER
   if (!q) {
     return res.status(400).json({ error: 'Missing search query' });
   }
