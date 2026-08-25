@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f4efe6">
+  <title>OG-SONG Downloader — Master Sound. Free. Forever.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Noto+Serif+JP:wght@400;700;900&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+  <!-- TOPBAR -->
+  <nav>
+    <a href="/" class="nav-logo">OG-SONG<span>.</span>DL</a>
+    <div class="nav-badge">極音 320 KBPS READY</div>
+  </nav>
+
+  <!-- MAIN WRAPPER -->
+  <div class="container">
+    <div class="hero-sun"></div>
+
+    <!-- 1. SEARCH VIEW -->
+    <div id="searchView">
+      <div class="hero-badge">v3.0.0 · AD-FREE SOUND DOJO</div>
+      <h1 class="hero-title">
+        Master Sound.<br>
+        <span class="red-text">Download</span> Free.
+      </h1>
+
+      <div class="hero-sub-row">
+        <div class="hero-line"></div>
+        <span class="hero-sub-text">Lossless Audio Sanctuary</span>
+      </div>
+
+      <p class="hero-desc">
+        <strong>OG-SONG Downloader</strong> — Stream and download studio quality 320kbps tracks without subscriptions, ads, or redirects.
+      </p>
+
+      <!-- SEARCH FORM -->
+      <form id="searchForm" class="search-card">
+        <input id="q" type="text" placeholder="Search track, artist, or album..." autocomplete="off" required>
+        <button type="submit" class="btn-search" id="searchBtn">探索 SEARCH</button>
+      </form>
+
+      <!-- STATS BAR -->
+      <div class="stats-bar">
+        <div class="stat-item">
+          <span class="stat-num">320k</span>
+          <span class="stat-label">Max Bitrate</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-num">0s</span>
+          <span class="stat-label">Wait Time</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-num">₹0</span>
+          <span class="stat-label">Cost Forever</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-num">AAC</span>
+          <span class="stat-label">HQ Engine</span>
+        </div>
+      </div>
+
+      <!-- RESULTS SECTION -->
+      <div id="resultsBlock" style="display: none;">
+        <div class="section-header">
+          <div class="section-num">01</div>
+          <div class="section-title">Results List / 検索結果</div>
+        </div>
+        <div class="results-list" id="resultsList"></div>
+      </div>
+
+      <!-- MANIFESTO BANNER -->
+      <div class="manifesto-card">
+        <p class="manifesto-quote">
+          "Music belongs to the <span>soul</span>, not to subscription paywalls."
+        </p>
+        <div class="manifesto-author">— OG-SONG MANIFESTO</div>
+      </div>
+    </div>
+
+    <!-- 2. CYBER DOJO PLAYER VIEW -->
+    <div id="playerView" class="player-view">
+      <button class="back-btn" id="backBtn">← 戻る BACK TO SEARCH</button>
+
+      <div class="player-card">
+        <div class="disc-cover" id="discCover">
+          <img id="playerCover" src="" alt="Album Art">
+        </div>
+
+        <h2 class="p-title" id="pTitle">—</h2>
+        <p class="p-artist" id="pArtist">—</p>
+        <p class="p-album" id="pAlbum">—</p>
+
+        <!-- CUSTOM AUDIO ENGINE CONTROLS -->
+        <div class="control-panel">
+          <div class="transport-row">
+            <button class="p-btn" id="rewindBtn" title="Rewind 10s">-10s</button>
+            <button class="p-btn p-play" id="playBtn">▶</button>
+            <button class="p-btn" id="fwdBtn" title="Forward 10s">+10s</button>
+
+            <div class="seek-wrap">
+              <span class="time" id="curTime">0:00</span>
+              <input type="range" id="seek" min="0" max="100" value="0" step="0.1">
+              <span class="time" id="durTime">0:00</span>
+            </div>
+          </div>
+
+          <div class="sub-controls">
+            <div class="vol-box">
+              <span>VOL</span>
+              <input type="range" id="vol" min="0" max="100" value="85">
+            </div>
+            <div class="speed-box">
+              <select id="speed">
+                <option value="0.75">0.75×</option>
+                <option value="1" selected>1.0×</option>
+                <option value="1.25">1.25×</option>
+                <option value="1.5">1.5×</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- WORKING INK-STAMP DIRECT DOWNLOADS -->
+        <div class="dl-label">⚡ DIRECT DOWNLOAD STAMPS</div>
+        <div class="dl-grid">
+          <a id="btn320" class="dl-stamp" href="#" target="_blank" rel="noopener noreferrer">
+            <span class="dl-kbps">320 KBPS</span>
+            <span class="dl-tag">極上 · Ultra HD</span>
+          </a>
+          <a id="btn160" class="dl-stamp" href="#" target="_blank" rel="noopener noreferrer">
+            <span class="dl-kbps">160 KBPS</span>
+            <span class="dl-tag">標準 · High</span>
+          </a>
+          <a id="btn96" class="dl-stamp" href="#" target="_blank" rel="noopener noreferrer">
+            <span class="dl-kbps">96 KBPS</span>
+            <span class="dl-tag">軽量 · Saver</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Hidden Native Audio Engine -->
+      <audio id="audio" preload="none"></audio>
+    </div>
+  </div>
+
+  <!-- TOAST FEEDBACK -->
+  <div class="toast" id="toast"><span class="dot-ind"></span><span id="toastMsg"></span></div>
+
+  <!-- FOOTER -->
+  <footer>
+    © 2026 <strong>OG-SONG Downloader</strong> · Pure Audio Freedom
+  </footer>
+
+  <script src="/script.js" defer></script>
+</body>
+</html>
