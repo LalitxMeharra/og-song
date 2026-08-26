@@ -222,7 +222,7 @@ export default async function handler(req, res) {
     'Referer': 'https://www.jiosaavn.com/'
   };
 
-  // 1. STREAM PROXY DOWNLOAD
+  // 1. DIRECT STREAM PROXY PIPELINE
   if (pathname.includes('/download') || action === 'download') {
     if (!downloadUrl) return res.status(400).json({ error: 'Missing url parameter' });
 
@@ -264,7 +264,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // 2. SONG DETAILS & STREAM EXTRACTION
+  // 2. SONG DETAILS & STREAM LINKS
   if (pathname.includes('/details') || action === 'details' || (pid && !q)) {
     let targetPid = String(pid || '').trim();
     if (targetPid.includes(',')) targetPid = targetPid.split(',')[0].trim();
@@ -307,7 +307,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // 3. COMPLETE ACCURATE SEARCH (TOPQUERY + SONGS + ALBUMS + GLOBAL SEARCH)
+  // 3. PURE JIOSAAVN NATURAL RANKING SEARCH
   if (!q) {
     return res.status(400).json({ error: 'Missing search query' });
   }
@@ -315,57 +315,41 @@ export default async function handler(req, res) {
   try {
     const results = [];
     const seenPids = new Set();
-    const queryClean = String(q).trim().toLowerCase();
 
-    function addSong(item, forceTop = false) {
+    function pushItem(item) {
       if (!item) return;
-      
-      // Auto-resolve song PID whether it came from song or album
       let itemPid = String(item.id || item.more_info?.song_pids || '').split(',')[0].trim();
       if (!itemPid || seenPids.has(itemPid)) return;
 
-      const title = cleanText(item.title || item.song);
-      const artist = cleanText(item.more_info?.primary_artists || item.primary_artists || item.singers || item.music || item.description || 'Unknown');
-      const album = cleanText(item.more_info?.album || item.album || item.title || 'Single');
-      const image = String(item.image || item.more_info?.image || '').replace('50x50', '500x500').replace('150x150', '500x500');
-
       seenPids.add(itemPid);
-      const songObj = { id: itemPid, pid: itemPid, title, artist, album, image };
-
-      if (forceTop || title.toLowerCase() === queryClean) {
-        results.unshift(songObj); // Place exact match at #1 position
-      } else {
-        results.push(songObj);
-      }
+      results.push({
+        id: itemPid,
+        pid: itemPid,
+        title: cleanText(item.title || item.song),
+        artist: cleanText(item.more_info?.primary_artists || item.primary_artists || item.singers || item.music || item.description || 'Unknown'),
+        album: cleanText(item.more_info?.album || item.album || item.title || 'Single'),
+        image: String(item.image || item.more_info?.image || '').replace('50x50', '500x500').replace('150x150', '500x500')
+      });
     }
 
-    // 1. Full Autocomplete Match
+    // Call JioSaavn official autocomplete (Ranked by user popularity / CTR)
     const autoUrl = `https://www.jiosaavn.com/api.php?__call=autocomplete.get&_format=json&_marker=0&cc=in&includeMetaTags=1&query=${encodeURIComponent(q)}`;
     const autoRes = await fetch(autoUrl, { headers });
     const autoData = await autoRes.json();
 
-    // Top Query (Most popular exact match)
+    // 1. Top Query (Rank 1 popularity match)
     if (autoData?.topquery?.data && Array.isArray(autoData.topquery.data)) {
-      autoData.topquery.data.forEach(item => addSong(item, true));
+      autoData.topquery.data.forEach(pushItem);
     }
 
-    // Songs Group
+    // 2. Songs (Rank 2+ popularity match)
     if (autoData?.songs?.data && Array.isArray(autoData.songs.data)) {
-      autoData.songs.data.forEach(item => addSong(item));
+      autoData.songs.data.forEach(pushItem);
     }
 
-    // Albums Group (Single track releases)
+    // 3. Albums (Single tracks / albums)
     if (autoData?.albums?.data && Array.isArray(autoData.albums.data)) {
-      autoData.albums.data.forEach(item => addSong(item));
-    }
-
-    // 2. Global Catalog Search
-    const searchUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&cc=in&includeMetaTags=1&q=${encodeURIComponent(q)}&n=20&p=1`;
-    const searchRes = await fetch(searchUrl, { headers });
-    const searchData = await searchRes.json();
-
-    if (searchData?.results && Array.isArray(searchData.results)) {
-      searchData.results.forEach(item => addSong(item));
+      autoData.albums.data.forEach(pushItem);
     }
 
     return res.status(200).json({
