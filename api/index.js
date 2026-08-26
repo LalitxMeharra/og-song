@@ -222,7 +222,7 @@ export default async function handler(req, res) {
     'Referer': 'https://www.jiosaavn.com/'
   };
 
-  // 1. DOWNLOAD STREAM ROUTE
+  // 1. DIRECT STREAM PROXY PIPELINE
   if (pathname.includes('/download') || action === 'download') {
     if (!downloadUrl) return res.status(400).json({ error: 'Missing url parameter' });
 
@@ -243,7 +243,7 @@ export default async function handler(req, res) {
       });
 
       if (!upstream.ok || !upstream.body) {
-        return res.status(502).json({ error: 'Upstream fetch failed' });
+        return res.status(502).json({ error: 'Upstream stream failed' });
       }
 
       const contentLength = upstream.headers.get('content-length');
@@ -264,7 +264,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // 2. SONG DETAILS ROUTE
+  // 2. SONG DETAILS & STREAM LINKS
   if (pathname.includes('/details') || action === 'details' || (pid && !q)) {
     let targetPid = String(pid || '').trim();
     if (targetPid.includes(',')) targetPid = targetPid.split(',')[0].trim();
@@ -307,10 +307,8 @@ export default async function handler(req, res) {
     }
   }
 
-  // 3. SEARCH ROUTE (Handles fallback directly)
-  if (!q) {
-    return res.status(400).json({ error: 'Missing search query' });
-  }
+  // 3. SEARCH
+  if (!q) return res.status(400).json({ error: 'Missing search query' });
 
   try {
     const searchUrl = `https://www.jiosaavn.com/api.php?__call=autocomplete.get&_format=json&_marker=0&cc=in&includeMetaTags=1&query=${encodeURIComponent(q)}`;
@@ -336,4 +334,4 @@ export default async function handler(req, res) {
   } catch (error) {
     return res.status(502).json({ error: error.message });
   }
-}
+    }
