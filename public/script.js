@@ -1,27 +1,25 @@
 const searchForm = document.getElementById('searchForm');
 const qInput = document.getElementById('q');
 const searchBtn = document.getElementById('searchBtn');
-const resultsArea = document.getElementById('resultsArea');
+const resultsBlock = document.getElementById('resultsBlock');
+const resultsList = document.getElementById('resultsList');
 
 const searchView = document.getElementById('searchView');
 const playerView = document.getElementById('playerView');
 const backBtn = document.getElementById('backBtn');
 
-// Custom Audio Controls
+// Audio Controls
 const audio = document.getElementById('audio');
 const playBtn = document.getElementById('playBtn');
-const playIcon = document.getElementById('playIcon');
+const discCover = document.getElementById('discCover');
 const seek = document.getElementById('seek');
 const curTime = document.getElementById('curTime');
 const durTime = document.getElementById('durTime');
 const vol = document.getElementById('vol');
-const muteBtn = document.getElementById('muteBtn');
-const volIcon = document.getElementById('volIcon');
 const speed = document.getElementById('speed');
 
-// Player Card Display
-const coverImg = document.getElementById('coverImg');
-const coverEq = document.getElementById('coverEq');
+// Player Elements
+const playerCover = document.getElementById('playerCover');
 const pTitle = document.getElementById('pTitle');
 const pArtist = document.getElementById('pArtist');
 const pAlbum = document.getElementById('pAlbum');
@@ -47,19 +45,20 @@ function fmtTime(s) {
 }
 
 function escapeHtml(s = '') {
-  return String(s).replace(/[&<>'"]/g, (c) => ({
+  return String(s).replace(/[&<>'"]/g, c => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
   }[c]));
 }
 
-async function performSearch(e) {
-  if (e) e.preventDefault();
+// 1. SEARCH LOGIC
+searchForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
   const query = qInput.value.trim();
   if (!query) return;
 
   searchBtn.disabled = true;
-  searchBtn.innerHTML = `Searching...`;
-  resultsArea.innerHTML = '';
+  searchBtn.textContent = '探しています...';
+  resultsList.innerHTML = '';
 
   try {
     const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
@@ -69,110 +68,86 @@ async function performSearch(e) {
 
     const results = Array.isArray(data.results) ? data.results : [];
     if (!results.length) {
-      resultsArea.innerHTML = `<div class="empty">No songs found for "${escapeHtml(query)}"</div>`;
+      resultsList.innerHTML = `<div style="padding:24px;text-align:center;font-family:'Space Mono';border:2px dashed var(--border-dark);">No tracks found for "${escapeHtml(query)}"</div>`;
+      resultsBlock.style.display = 'block';
       return;
     }
 
-    let html = `
-      <div class="status-line">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <b>${results.length}</b> result(s) found for “${escapeHtml(data.query)}”.
+    resultsList.innerHTML = results.map(r => `
+      <div class="result-card" onclick="openTrack('${r.pid}')">
+        <img class="result-img" src="${escapeHtml(r.image || '')}" alt="Cover" loading="lazy">
+        <div class="result-info">
+          <div class="result-title">${escapeHtml(r.title)}</div>
+          <div class="result-meta">${escapeHtml(r.artist)} · ${escapeHtml(r.album)}</div>
+        </div>
+        <button class="btn-play-badge">再生 PLAY</button>
       </div>
-      <div class="results">`;
+    `).join('');
 
-    results.forEach((r, i) => {
-      html += `
-        <div class="result-card" style="animation-delay:${i * 0.04}s" onclick="openSong('${r.pid}')">
-          <img class="art" src="${escapeHtml(r.image || 'https://c.saavncdn.com/default.jpg')}" alt="Cover" loading="lazy">
-          <div class="r-info">
-            <div class="r-title">${escapeHtml(r.title)}</div>
-            <div class="r-sub">${escapeHtml(r.artist)} · ${escapeHtml(r.album)}</div>
-          </div>
-          <button class="btn-play">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-            Play
-          </button>
-        </div>`;
-    });
-
-    html += `</div>`;
-    resultsArea.innerHTML = html;
+    resultsBlock.style.display = 'block';
   } catch (err) {
-    resultsArea.innerHTML = `<div class="empty">Error: ${escapeHtml(err.message)}</div>`;
+    toast(`Error: ${err.message}`);
   } finally {
     searchBtn.disabled = false;
-    searchBtn.innerHTML = `
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2.4"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
-      Search`;
+    searchBtn.textContent = '探索 SEARCH';
   }
-}
+});
 
-async function openSong(songPid) {
-  toast('Decrypting & Loading HQ Audio...');
+// 2. OPEN TRACK IN CYBER DOJO PLAYER
+async function openTrack(songPid) {
+  toast('Decrypting & Loading HQ Stream...');
 
   try {
     const res = await fetch(`/api/details?pid=${encodeURIComponent(songPid)}`);
     const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || 'Failed to decrypt');
 
-    if (!res.ok || !data.success) {
-      throw new Error(data.error || 'Failed to get stream');
-    }
-
-    // Set Track Info
+    // UI Meta Info
     pTitle.textContent = data.title;
     pArtist.textContent = data.artist;
     pAlbum.textContent = data.album;
-    coverImg.src = data.image || '';
+    playerCover.src = data.image || '';
 
-    // Set Audio Source
+    // Audio Engine Setup
     audio.src = data.links['320'] || data.links['160'];
     audio.currentTime = 0;
     audio.volume = vol.value / 100;
     audio.playbackRate = parseFloat(speed.value);
-    
-    seek.value = 0;
-    updateSeekFill(0);
-    curTime.textContent = '0:00';
-    durTime.textContent = '0:00';
 
-    // Direct Working Proxy Downloads
+    // Working Native Backend Download Proxy URLs
     const safeTitle = data.title.replace(/[^\w\s.-]/g, '').trim() || 'song';
     btn320.href = `/api/download?url=${encodeURIComponent(data.links['320'])}&filename=${encodeURIComponent(safeTitle)}&quality=320kbps`;
     btn160.href = `/api/download?url=${encodeURIComponent(data.links['160'])}&filename=${encodeURIComponent(safeTitle)}&quality=160kbps`;
     btn96.href = `/api/download?url=${encodeURIComponent(data.links['96'])}&filename=${encodeURIComponent(safeTitle)}&quality=96kbps`;
 
-    // Switch View
     searchView.style.display = 'none';
     playerView.style.display = 'block';
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
     audio.play().then(() => {
-      setPlayingUI(true);
+      setPlayState(true);
     }).catch(() => {
-      setPlayingUI(false);
+      setPlayState(false);
       toast('Tap play to start stream');
     });
   } catch (err) {
-    alert(`Error: ${err.message}`);
+    alert('Track Error: ' + err.message);
   }
 }
 
-function setPlayingUI(isPlaying) {
-  playIcon.innerHTML = isPlaying
-    ? `<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>`
-    : `<path d="M8 5v14l11-7z"/>`;
-  coverEq.classList.toggle('active', isPlaying);
-  coverEq.classList.toggle('paused', !isPlaying);
+function setPlayState(isPlaying) {
+  playBtn.textContent = isPlaying ? '❚❚' : '▶';
+  discCover.classList.toggle('playing', isPlaying);
 }
 
-// Audio Player Events
+// 3. PLAYER CONTROLS
 playBtn.addEventListener('click', () => {
   if (audio.paused) {
     audio.play();
-    setPlayingUI(true);
+    setPlayState(true);
   } else {
     audio.pause();
-    setPlayingUI(false);
+    setPlayState(false);
   }
 });
 
@@ -190,20 +165,16 @@ audio.addEventListener('loadedmetadata', () => {
 });
 
 audio.addEventListener('timeupdate', () => {
-  if (!seek._dragging) {
-    seek.value = audio.currentTime;
-    updateSeekFill((audio.currentTime / (audio.duration || 1)) * 100);
-  }
+  if (!seek._dragging) seek.value = audio.currentTime;
   curTime.textContent = fmtTime(audio.currentTime);
 });
 
-audio.addEventListener('play', () => setPlayingUI(true));
-audio.addEventListener('pause', () => setPlayingUI(false));
-audio.addEventListener('ended', () => setPlayingUI(false));
+audio.addEventListener('play', () => setPlayState(true));
+audio.addEventListener('pause', () => setPlayState(false));
+audio.addEventListener('ended', () => setPlayState(false));
 
 seek.addEventListener('input', () => {
   seek._dragging = true;
-  updateSeekFill((seek.value / (audio.duration || seek.max)) * 100);
   curTime.textContent = fmtTime(seek.value);
 });
 
@@ -212,26 +183,8 @@ seek.addEventListener('change', () => {
   seek._dragging = false;
 });
 
-function updateSeekFill(pct) {
-  seek.style.background = `linear-gradient(90deg, var(--accent) ${pct}%, var(--line) ${pct}%)`;
-}
-
 vol.addEventListener('input', () => {
   audio.volume = vol.value / 100;
-  audio.muted = false;
-  updateVolIcon();
-});
-
-function updateVolIcon() {
-  const v = audio.muted ? 0 : audio.volume;
-  volIcon.innerHTML = v === 0
-    ? `<path d="M3 10v4h4l5 5V5L7 10H3z"/><path d="M17 9l4 6M21 9l-4 6" stroke-linecap="round"/>`
-    : `<path d="M3 10v4h4l5 5V5L7 10H3z"/><path d="M16 8a5 5 0 010 8" stroke-linecap="round"/>`;
-}
-
-muteBtn.addEventListener('click', () => {
-  audio.muted = !audio.muted;
-  updateVolIcon();
 });
 
 speed.addEventListener('change', () => {
@@ -241,9 +194,7 @@ speed.addEventListener('change', () => {
 backBtn.addEventListener('click', () => {
   audio.pause();
   audio.src = '';
-  setPlayingUI(false);
+  setPlayState(false);
   playerView.style.display = 'none';
   searchView.style.display = 'block';
 });
-
-searchForm.addEventListener('submit', performSearch);
