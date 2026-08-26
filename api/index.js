@@ -218,7 +218,7 @@ export default async function handler(req, res) {
   const action = req.query.action || urlObj.searchParams.get('action');
 
   const headers = {
-    'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
     'Referer': 'https://www.jiosaavn.com/'
   };
 
@@ -307,30 +307,59 @@ export default async function handler(req, res) {
     }
   }
 
-  // 3. SEARCH
-  if (!q) return res.status(400).json({ error: 'Missing search query' });
+  // 3. COMPREHENSIVE SEARCH ROUTE (AUTOCOMPLETE + FULL SEARCH HYBRID)
+  if (!q) {
+    return res.status(400).json({ error: 'Missing search query' });
+  }
 
   try {
-    const searchUrl = `https://www.jiosaavn.com/api.php?__call=autocomplete.get&_format=json&_marker=0&cc=in&includeMetaTags=1&query=${encodeURIComponent(q)}`;
-    const response = await fetch(searchUrl, { headers });
-    const data = await response.json();
-
     const results = [];
-    if (data?.songs?.data) {
-      for (const item of data.songs.data) {
-        const itemPid = String(item.id || item.more_info?.song_pids || '').split(',')[0].trim();
-        if (!itemPid) continue;
-        results.push({
-          id: itemPid,
-          pid: itemPid,
-          title: cleanText(item.title),
-          artist: cleanText(item.more_info?.primary_artists || item.description || 'Unknown'),
-          album: cleanText(item.album || 'Single'),
-          image: String(item.image || '').replace('50x50', '500x500')
-        });
-      }
+    const seenPids = new Set();
+
+    function addSong(item) {
+      if (!item) return;
+      const itemPid = String(item.id || item.more_info?.song_pids || '').split(',')[0].trim();
+      if (!itemPid || seenPids.has(itemPid)) return;
+
+      seenPids.add(itemPid);
+      results.push({
+        id: itemPid,
+        pid: itemPid,
+        title: cleanText(item.title || item.song),
+        artist: cleanText(item.more_info?.primary_artists || item.primary_artists || item.singers || item.description || 'Unknown'),
+        album: cleanText(item.more_info?.album || item.album || 'Single'),
+        image: String(item.image || item.more_info?.image || '').replace('50x50', '500x500').replace('150x150', '500x500')
+      });
     }
-    return res.status(200).json({ query: q, results });
+
+    // Step 1: Query full autocomplete endpoint
+    const autoUrl = `https://www.jiosaavn.com/api.php?__call=autocomplete.get&_format=json&_marker=0&cc=in&includeMetaTags=1&query=${encodeURIComponent(q)}`;
+    const autoRes = await fetch(autoUrl, { headers });
+    const autoData = await autoRes.json();
+
+    // Priority 1: Top matched query item (e.g. Exact match Navjot Ahuja "Khat")
+    if (autoData?.topquery?.data && Array.isArray(autoData.topquery.data)) {
+      autoData.topquery.data.forEach(addSong);
+    }
+
+    // Priority 2: Autocomplete songs list
+    if (autoData?.songs?.data && Array.isArray(autoData.songs.data)) {
+      autoData.songs.data.forEach(addSong);
+    }
+
+    // Step 2: Query primary global search endpoint for thorough catalog results
+    const searchUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&cc=in&includeMetaTags=1&q=${encodeURIComponent(q)}&n=20&p=1`;
+    const searchRes = await fetch(searchUrl, { headers });
+    const searchData = await searchRes.json();
+
+    if (searchData?.results && Array.isArray(searchData.results)) {
+      searchData.results.forEach(addSong);
+    }
+
+    return res.status(200).json({
+      query: q,
+      results
+    });
   } catch (error) {
     return res.status(502).json({ error: error.message });
   }
