@@ -51,6 +51,12 @@ function escapeHtml(s = '') {
 }
 
 // 1. SEARCH LOGIC
+// PAGINATION STATE VARIABLES
+let allResults = [];
+let currentPage = 1;
+const ITEMS_PER_PAGE = 10;
+
+// 1. SEARCH LOGIC
 searchForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const query = qInput.value.trim();
@@ -59,6 +65,7 @@ searchForm.addEventListener('submit', async (e) => {
   searchBtn.disabled = true;
   searchBtn.textContent = '探しています...';
   resultsList.innerHTML = '';
+  document.getElementById('paginationControls').style.display = 'none';
 
   try {
     const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
@@ -66,30 +73,77 @@ searchForm.addEventListener('submit', async (e) => {
 
     if (!response.ok) throw new Error(data.error || 'Search failed');
 
-    const results = Array.isArray(data.results) ? data.results : [];
-    if (!results.length) {
+    allResults = Array.isArray(data.results) ? data.results : [];
+    
+    if (!allResults.length) {
       resultsList.innerHTML = `<div style="padding:24px;text-align:center;font-family:'Space Mono';border:2px dashed var(--border-dark);">No tracks found for "${escapeHtml(query)}"</div>`;
       resultsBlock.style.display = 'block';
       return;
     }
 
-    resultsList.innerHTML = results.map(r => `
-      <div class="result-card" onclick="openTrack('${r.pid}')">
-        <img class="result-img" src="${escapeHtml(r.image || '')}" alt="Cover" loading="lazy">
-        <div class="result-info">
-          <div class="result-title">${escapeHtml(r.title)}</div>
-          <div class="result-meta">${escapeHtml(r.artist)} · ${escapeHtml(r.album)}</div>
-        </div>
-        <button class="btn-play-badge">再生 PLAY</button>
-      </div>
-    `).join('');
-
+    // Naya search hone par Page 1 se start karo
+    currentPage = 1;
+    renderPage();
     resultsBlock.style.display = 'block';
+
   } catch (err) {
     toast(`Error: ${err.message}`);
   } finally {
     searchBtn.disabled = false;
     searchBtn.textContent = '探索 SEARCH';
+  }
+});
+
+// PAGE RENDER FUNCTION
+function renderPage() {
+  const totalPages = Math.ceil(allResults.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  
+  // Sirf current page ke 10 gaane slice karo
+  const pageData = allResults.slice(startIndex, endIndex);
+
+  resultsList.innerHTML = pageData.map(r => `
+    <div class="result-card" onclick="openTrack('${r.pid}')">
+      <img class="result-img" src="${escapeHtml(r.image || '')}" alt="Cover" loading="lazy">
+      <div class="result-info">
+        <div class="result-title">${escapeHtml(r.title)}</div>
+        <div class="result-meta">${escapeHtml(r.artist)} · ${escapeHtml(r.album)}</div>
+      </div>
+      <button class="btn-play-badge">再生 PLAY</button>
+    </div>
+  `).join('');
+
+  // Update Pagination UI
+  document.getElementById('pageIndicator').textContent = `PAGE ${currentPage} / ${totalPages}`;
+  
+  const prevBtn = document.getElementById('prevPageBtn');
+  const nextBtn = document.getElementById('nextPageBtn');
+  
+  prevBtn.disabled = currentPage === 1;
+  nextBtn.disabled = currentPage === totalPages;
+  
+  // Agar 10 se zyada gaane hain tabhi controls dikhao
+  if (totalPages > 1) {
+    document.getElementById('paginationControls').style.display = 'flex';
+  }
+}
+
+// PAGINATION BUTTON LISTENERS
+document.getElementById('prevPageBtn').addEventListener('click', () => {
+  if (currentPage > 1) {
+    currentPage--;
+    renderPage();
+    resultsBlock.scrollIntoView({ behavior: 'smooth' }); // Upar scroll karega
+  }
+});
+
+document.getElementById('nextPageBtn').addEventListener('click', () => {
+  const totalPages = Math.ceil(allResults.length / ITEMS_PER_PAGE);
+  if (currentPage < totalPages) {
+    currentPage++;
+    renderPage();
+    resultsBlock.scrollIntoView({ behavior: 'smooth' }); // Upar scroll karega
   }
 });
 
