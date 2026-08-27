@@ -217,9 +217,12 @@ export default async function handler(req, res) {
   const quality = req.query.quality || urlObj.searchParams.get('quality');
   const action = req.query.action || urlObj.searchParams.get('action');
 
+  // Modified headers to spoof Indian IP and bypass US caching issues
   const headers = {
     'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36',
-    'Referer': 'https://www.jiosaavn.com/'
+    'Referer': 'https://www.jiosaavn.com/',
+    'X-Forwarded-For': '103.15.255.255',
+    'X-Real-IP': '103.15.255.255'
   };
 
   // 1. DIRECT STREAM PROXY PIPELINE
@@ -307,7 +310,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // 3. SEARCH (RAW JSON TEST)
+  // 3. SEARCH (FINAL PRODUCTION LOGIC)
   if (!q) return res.status(400).json({ error: 'Missing search query' });
 
   try {
@@ -315,12 +318,31 @@ export default async function handler(req, res) {
     const response = await fetch(searchUrl, { headers });
     const data = await response.json();
 
-    // Vercel JioSaavn se jo bhi dekh raha hai, wo direct browser pe phek do!
-    return res.status(200).json({ 
-      query: q, 
-      vercel_topquery: data?.topquery?.data || [],
-      vercel_songs: data?.songs?.data || [] 
-    });
+    const rawTop = Array.isArray(data?.topquery?.data) ? data.topquery.data : [];
+    const rawSongs = Array.isArray(data?.songs?.data) ? data.songs.data : [];
+    const combined = [...rawTop, ...rawSongs];
+    
+    const resultsMap = new Map();
+
+    for (const item of combined) {
+      const isSong = item.type === 'song' || (item.more_info && item.more_info.song_pids);
+      if (!isSong) continue;
+
+      const itemPid = String(item.id || item.more_info?.song_pids || '').split(',')[0].trim();
+      
+      if (!itemPid || resultsMap.has(itemPid)) continue;
+
+      resultsMap.set(itemPid, {
+        id: itemPid,
+        pid: itemPid,
+        title: cleanText(item.title),
+        artist: cleanText(item.more_info?.primary_artists || item.description || 'Unknown'),
+        album: cleanText(item.album || 'Single'),
+        image: String(item.image || '').replace('50x50', '500x500')
+      });
+    }
+
+    return res.status(200).json({ query: q, results: Array.from(resultsMap.values()) });
   } catch (error) {
     return res.status(502).json({ error: error.message });
   }
