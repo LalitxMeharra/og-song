@@ -1,12 +1,12 @@
-// --- GLOBAL STATE & ROUTER ---
 let currentSongData = null;
 let searchTimer = null;
 
-// SMART HISTORY ROUTER (Step by Step Back + Exit Trap)
+// --- SMART HISTORY ROUTER (Step by Step Back + Exit Trap) ---
 const Router = {
   init() {
-    // Inject base state
-    history.replaceState({ step: 'home', view: 'homeView' }, '');
+    // 🚨 Push TRAP state first, then HOME state to make exit popup work 🚨
+    history.replaceState({ step: 'trap' }, '');
+    history.pushState({ step: 'home', view: 'homeView' }, '');
     window.addEventListener('popstate', this.handleBack.bind(this));
   },
   navigate(viewId, isPlayer = false) {
@@ -14,42 +14,37 @@ const Router = {
       document.getElementById('fullPlayer').classList.add('open');
       history.pushState({ step: 'player' }, '');
     } else {
-      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-      document.getElementById(viewId).classList.add('active');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      
-      // Update Bottom Nav if applicable
-      document.querySelectorAll('.nav-item').forEach(n => {
-        n.classList.remove('active');
-        if(n.dataset.target === viewId) n.classList.add('active');
-      });
+      this.switchUI(viewId);
       history.pushState({ step: 'view', view: viewId }, '');
     }
   },
+  switchUI(viewId) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    const target = document.getElementById(viewId);
+    if(target) target.classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    document.querySelectorAll('.nav-item').forEach(n => {
+      n.classList.remove('active');
+      if(n.dataset.target === viewId) n.classList.add('active');
+    });
+  },
   handleBack(e) {
-    // If player was open, close it
     if (document.getElementById('fullPlayer').classList.contains('open')) {
       document.getElementById('fullPlayer').classList.remove('open');
     } 
     else if (e.state && e.state.view) {
-      // Normal view switch
-      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-      document.getElementById(e.state.view).classList.add('active');
-      
-      document.querySelectorAll('.nav-item').forEach(n => {
-        n.classList.remove('active');
-        if(n.dataset.target === e.state.view) n.classList.add('active');
-      });
+      this.switchUI(e.state.view);
     } 
-    else {
-      // TRAP: We reached the start of our app history! Show exit modal.
-      history.pushState({ step: 'trap', view: 'homeView' }, ''); // push trap back
+    else if (e.state && e.state.step === 'trap') {
+      // TRAP TRIGGERED -> Show Exit Modal
       document.getElementById('exitModal').style.display = 'flex';
+      // Re-push home state so they don't actually exit
+      history.pushState({ step: 'home', view: 'homeView' }, '');
     }
   }
 };
 
-// --- INIT APP ---
 window.onload = () => {
   Router.init();
   loadHomeData();
@@ -82,6 +77,15 @@ document.querySelectorAll('.nav-item').forEach(item => {
   });
 });
 
+// EXIT MODAL ACTIONS
+document.getElementById('btnExitNo').addEventListener('click', () => {
+  document.getElementById('exitModal').style.display = 'none';
+});
+document.getElementById('btnExitYes').addEventListener('click', () => {
+  document.getElementById('exitModal').style.display = 'none';
+  window.history.go(-2); // Escapes the trap entirely
+});
+
 // HOME DATA
 async function loadHomeData() {
   try {
@@ -100,39 +104,45 @@ async function loadHomeData() {
   } catch (err) { console.error(err); }
 }
 
-// 🚨 COLLECTION VIEW (Album/Artist Playlist Generator) 🚨
+// 🚨 COLLECTION VIEW (Clean Playlist UI like JioSaavn) 🚨
 window.handleCardClick = async function(id, type, title, img) {
   if (type === 'song') {
     openTrack(id);
   } else {
-    // Open Collection View Step
+    // Setup Header
     document.getElementById('colImg').src = img;
     document.getElementById('colTitle').textContent = title;
-    document.getElementById('colSubtitle').textContent = type.toUpperCase();
-    document.getElementById('collectionList').innerHTML = `<div style="text-align:center; padding: 20px; font-family:'Space Mono';">Loading tracks...</div>`;
+    document.getElementById('colSubtitle').textContent = (type === 'artist' ? 'ARTIST RADAR' : 'ALBUM / PLAYLIST');
+    document.getElementById('collectionList').innerHTML = `<div style="text-align:center; padding: 40px; font-family:'Space Mono'; color:var(--crimson);">Loading tracks...</div>`;
+    
+    // Navigate to Collection
     Router.navigate('collectionView');
 
-    // Fetch tracks using search API as fallback
     try {
       const res = await fetch(`/api/search?q=${encodeURIComponent(title)}&_t=${Date.now()}`);
       const data = await res.json();
       if(data.results && data.results.length > 0) {
-        document.getElementById('collectionList').innerHTML = data.results.map(r => `
-          <div class="result-card" onclick="openTrack('${r.pid}')">
-            <img class="result-img" src="${r.image}" alt="Cover">
-            <div class="result-info"><div class="result-title">${r.title}</div><div class="result-meta">${r.artist}</div></div>
-            <button class="btn-play-badge">PLAY</button>
+        // Render as a JioSaavn style playlist
+        document.getElementById('collectionList').innerHTML = data.results.map((r, index) => `
+          <div class="result-card" onclick="openTrack('${r.pid}')" style="border:none; border-bottom:1px dashed var(--grid-line); box-shadow:none; padding: 12px 4px; background: transparent;">
+            <div style="font-family:'Space Mono'; font-weight:bold; color:var(--text-muted); width: 24px;">${index + 1}</div>
+            <div class="result-info">
+              <div class="result-title" style="font-size:14px; font-weight:bold;">${r.title}</div>
+              <div class="result-meta" style="font-size:11px;">${r.artist}</div>
+            </div>
+            <button class="action-btn" style="font-size:16px; color:var(--ink-black);">▶</button>
           </div>
         `).join('');
       } else {
         document.getElementById('collectionList').innerHTML = `<div style="text-align:center; padding: 20px;">No tracks found.</div>`;
       }
     } catch(err) {
-      document.getElementById('collectionList').innerHTML = `<div style="text-align:center; padding: 20px; color:var(--crimson);">Error loading tracks.</div>`;
+      document.getElementById('collectionList').innerHTML = `<div style="text-align:center; padding: 20px; color:var(--crimson);">Error loading collection.</div>`;
     }
   }
 };
 document.getElementById('collectionBackBtn').addEventListener('click', () => history.back());
+
 
 // 🚨 LIVE SEARCH ENGINE (Letter by Letter) 🚨
 const qInput = document.getElementById('q');
@@ -150,8 +160,7 @@ qInput.addEventListener('input', (e) => {
   }
 
   searchSpinner.style.display = 'block';
-  // Debounce (wait 500ms before fetching)
-  searchTimer = setTimeout(() => executeLiveSearch(query), 500);
+  searchTimer = setTimeout(() => executeLiveSearch(query), 500); // 500ms typing delay
 });
 
 async function executeLiveSearch(query) {
@@ -167,7 +176,6 @@ async function executeLiveSearch(query) {
       return;
     }
 
-    // TOP MATCH (1st Result)
     const top = results[0];
     document.getElementById('topMatchContainer').style.display = 'block';
     document.getElementById('topMatchCard').innerHTML = `
@@ -181,7 +189,6 @@ async function executeLiveSearch(query) {
       </div>
     `;
 
-    // OTHER RESULTS
     document.getElementById('otherResultsTitle').style.display = 'block';
     document.getElementById('resultsList').innerHTML = results.slice(1).map(r => `
       <div class="result-card" onclick="openTrack('${r.pid}')">
@@ -195,7 +202,7 @@ async function executeLiveSearch(query) {
   }
 }
 
-// --- OPEN TRACK (DETAILS & STREAMING) ---
+// OPEN TRACK
 const audio = document.getElementById('audio');
 async function openTrack(pid) {
   showToast('Decrypting HQ Stream...');
@@ -216,7 +223,6 @@ async function openTrack(pid) {
     document.getElementById('mpCover').src = data.image;
     document.getElementById('miniPlayer').style.display = 'flex';
 
-    // Step-by-Step Push State for Player
     Router.navigate('fullPlayer', true);
 
     const safeTitle = data.title.replace(/[^\w\s.-]/g, '').trim() || 'song';
@@ -239,9 +245,7 @@ async function openTrack(pid) {
 document.getElementById('closePlayerBtn').addEventListener('click', () => history.back());
 document.getElementById('miniPlayer').addEventListener('click', (e) => { if(e.target.id !== 'mpPlayBtn') Router.navigate('fullPlayer', true); });
 
-function togglePlay() {
-  if (audio.paused && audio.src) { audio.play(); setPlayState(true); } else { audio.pause(); setPlayState(false); }
-}
+function togglePlay() { if (audio.paused && audio.src) { audio.play(); setPlayState(true); } else { audio.pause(); setPlayState(false); } }
 document.getElementById('playBtn').addEventListener('click', togglePlay);
 document.getElementById('mpPlayBtn').addEventListener('click', togglePlay);
 
@@ -267,7 +271,6 @@ document.getElementById('fwdBtn').addEventListener('click', () => { audio.curren
 document.getElementById('vol').addEventListener('input', (e) => { audio.volume = e.target.value / 100; });
 document.getElementById('speed').addEventListener('change', (e) => { audio.playbackRate = parseFloat(e.target.value); });
 
-// --- STORAGE MANAGERS ---
 function saveToArchive(song) {
   let archive = JSON.parse(localStorage.getItem('og_archive') || '[]');
   archive = archive.filter(s => s.pid !== song.pid);
@@ -280,9 +283,7 @@ function renderArchive() {
   const archive = JSON.parse(localStorage.getItem('og_archive') || '[]');
   const list = document.getElementById('archiveList');
   if(!archive.length) { list.innerHTML = `<div style="padding:24px;text-align:center;border:2px dashed var(--border-dark);">No playback history.</div>`; return; }
-  list.innerHTML = archive.map(r => `
-    <div class="result-card" onclick="openTrack('${r.pid}')"><img class="result-img" src="${r.image}" alt="Cover"><div class="result-info"><div class="result-title">${r.title}</div><div class="result-meta">${r.artist}</div></div><button class="btn-play-badge">PLAY</button></div>
-  `).join('');
+  list.innerHTML = archive.map(r => `<div class="result-card" onclick="openTrack('${r.pid}')"><img class="result-img" src="${r.image}" alt="Cover"><div class="result-info"><div class="result-title">${r.title}</div><div class="result-meta">${r.artist}</div></div><button class="btn-play-badge">PLAY</button></div>`).join('');
 }
 
 function toggleStorage(key, btnElem, activeIcon, inactiveIcon, addMsg, removeMsg) {
@@ -314,27 +315,16 @@ function checkActionStates(pid) {
 function renderFavorites() {
   const favs = JSON.parse(localStorage.getItem('og_favorites') || '[]');
   const grid = document.getElementById('favoritesGrid');
-  if(!favs.length) { grid.innerHTML = `<div style="font-size:12px;color:var(--text-muted);padding:10px;">No favorite tracks yet. Play a track and click ♡</div>`; return; }
+  if(!favs.length) { grid.innerHTML = `<div style="font-size:12px;color:var(--text-muted);padding:10px;">No favorites yet.</div>`; return; }
   grid.innerHTML = favs.map(i => `<div class="grid-card" onclick="openTrack('${i.pid}')"><img src="${i.image}" alt="Art"><div class="grid-title">${i.title}</div></div>`).join('');
 }
 
 function renderLibrary() {
   const libs = JSON.parse(localStorage.getItem('og_library') || '[]');
   const list = document.getElementById('playlistGrid');
-  if(!libs.length) { list.innerHTML = `<div style="padding:24px;text-align:center;border:2px dashed var(--border-dark);">Your library is empty. Click + to add tracks.</div>`; return; }
-  list.innerHTML = libs.map(r => `
-    <div class="result-card" onclick="openTrack('${r.pid}')"><img class="result-img" src="${r.image}" alt="Cover"><div class="result-info"><div class="result-title">${r.title}</div><div class="result-meta">${r.artist}</div></div><button class="btn-play-badge">PLAY</button></div>
-  `).join('');
+  if(!libs.length) { list.innerHTML = `<div style="padding:24px;text-align:center;border:2px dashed var(--border-dark);">Library is empty.</div>`; return; }
+  list.innerHTML = libs.map(r => `<div class="result-card" onclick="openTrack('${r.pid}')"><img class="result-img" src="${r.image}" alt="Cover"><div class="result-info"><div class="result-title">${r.title}</div><div class="result-meta">${r.artist}</div></div><button class="btn-play-badge">PLAY</button></div>`).join('');
 }
 
-// MODALS
 document.getElementById('openDlModal').addEventListener('click', () => document.getElementById('dlModal').style.display = 'flex');
 document.getElementById('closeDlModal').addEventListener('click', () => document.getElementById('dlModal').style.display = 'none');
-
-// EXIT MODAL ACTIONS
-document.getElementById('btnExitNo').addEventListener('click', () => {
-  document.getElementById('exitModal').style.display = 'none';
-});
-document.getElementById('btnExitYes').addEventListener('click', () => {
-  window.history.go(-2); // Escapes the trap
-});
