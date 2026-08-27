@@ -310,24 +310,23 @@ export default async function handler(req, res) {
     }
   }
 
-  // 3. SEARCH (FINAL PRODUCTION LOGIC)
+  // 3. SEARCH (MAXIMUM RESULTS & EXACT SEQUENCE)
   if (!q) return res.status(400).json({ error: 'Missing search query' });
 
   try {
-    const searchUrl = `https://www.jiosaavn.com/api.php?__call=autocomplete.get&_format=json&_marker=0&cc=in&includeMetaTags=1&query=${encodeURIComponent(q)}`;
+    // autocomplete.get ki jagah search.getResults use kar rahe hain
+    // n=50 matlab ek baar mein 50 results aayenge (tum chaho to 100 bhi kar sakte ho)
+    const searchUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&q=${encodeURIComponent(q)}&n=50&p=1&_format=json&_marker=0&cc=in`;
     const response = await fetch(searchUrl, { headers });
     const data = await response.json();
 
-    const rawTop = Array.isArray(data?.topquery?.data) ? data.topquery.data : [];
-    const rawSongs = Array.isArray(data?.songs?.data) ? data.songs.data : [];
-    const combined = [...rawTop, ...rawSongs];
+    // search.getResults mein data directly 'results' array mein aata hai
+    const rawSongs = Array.isArray(data?.results) ? data.results : [];
     
     const resultsMap = new Map();
 
-    for (const item of combined) {
-      const isSong = item.type === 'song' || (item.more_info && item.more_info.song_pids);
-      if (!isSong) continue;
-
+    for (const item of rawSongs) {
+      // JioSaavn ke full search mein data structure thoda alag hota hai
       const itemPid = String(item.id || item.more_info?.song_pids || '').split(',')[0].trim();
       
       if (!itemPid || resultsMap.has(itemPid)) continue;
@@ -336,12 +335,14 @@ export default async function handler(req, res) {
         id: itemPid,
         pid: itemPid,
         title: cleanText(item.title),
-        artist: cleanText(item.more_info?.primary_artists || item.description || 'Unknown'),
-        album: cleanText(item.album || 'Single'),
-        image: String(item.image || '').replace('50x50', '500x500')
+        // Artist and Album fields structure is slightly different here
+        artist: cleanText(item.more_info?.primary_artists || item.subtitle || 'Unknown'),
+        album: cleanText(item.more_info?.album || item.album || 'Single'),
+        image: String(item.image || '').replace('50x50', '500x500').replace('150x150', '500x500')
       });
     }
 
+    // Map se array banayenge toh exact wahi order rahega jo JioSaavn ne bheja tha
     return res.status(200).json({ query: q, results: Array.from(resultsMap.values()) });
   } catch (error) {
     return res.status(502).json({ error: error.message });
