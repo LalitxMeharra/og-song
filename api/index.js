@@ -310,11 +310,10 @@ export default async function handler(req, res) {
     }
   }
 
-  // 3. SEARCH (LOCKED TO MAX 20 & ARTIST NAME FIX)
+  // 3. SEARCH (ROOT LEVEL ARTIST FIX + MAX 20)
   if (!q) return res.status(400).json({ error: 'Missing search query' });
 
   try {
-    // Sirf ek page fetch karenge, aur n=20 set karenge
     const searchUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&q=${encodeURIComponent(q)}&n=25&p=1&_format=json&_marker=0&cc=in`;
     const response = await fetch(searchUrl, { headers });
     const data = await response.json();
@@ -323,31 +322,26 @@ export default async function handler(req, res) {
     const resultsMap = new Map();
 
     for (const item of rawSongs) {
+      // ID root level par check karo, nahi toh more_info mein
       const itemPid = String(item.id || item.more_info?.song_pids || '').split(',')[0].trim();
       if (!itemPid || resultsMap.has(itemPid)) continue;
 
-      // 🚨 AGGRESSIVE ARTIST EXTRACTOR 🚨
-      // JioSaavn alag-alag gaano ke liye alag jagah artist chupata hai
-      let artistName = item?.more_info?.primary_artists 
-                    || item?.more_info?.singers 
-                    || item?.subtitle 
-                    || item?.description 
-                    || item?.artist 
+      // 🚨 THE ROOT CAUSE FIX: Checking direct properties first! 🚨
+      let artistName = item.primary_artists 
+                    || item.more_info?.primary_artists 
+                    || item.singers 
+                    || item.more_info?.singers 
+                    || item.subtitle 
+                    || item.description 
+                    || item.artist 
+                    || item.music 
                     || '';
 
-      // Agar data string hai, toh usko theek se clean karenge
       if (typeof artistName === 'string') {
-        // "Song · Artist" format ko split karna
-        if (artistName.includes(' · ')) {
-          artistName = artistName.split(' · ')[1];
-        } 
-        // "Song - Artist" format ko split karna
-        else if (artistName.includes(' - ')) {
-          artistName = artistName.split(' - ')[1];
-        }
+        if (artistName.includes(' · ')) artistName = artistName.split(' · ')[1];
+        else if (artistName.includes(' - ')) artistName = artistName.split(' - ')[1];
       }
 
-      // Final cleanup, agar tab bhi blank hai to hi 'Unknown' warna proper naam
       artistName = cleanText(artistName);
       if (!artistName || artistName.toLowerCase() === 'song') {
         artistName = 'Unknown Artist';
@@ -358,16 +352,15 @@ export default async function handler(req, res) {
         pid: itemPid,
         title: cleanText(item.title || item.song),
         artist: artistName,
-        album: cleanText(item.more_info?.album || item.album || 'Single'),
+        album: cleanText(item.album || item.more_info?.album || 'Single'),
         image: String(item.image || '').replace('50x50', '500x500').replace('150x150', '500x500')
       });
 
-      // Agar humare paas 20 unique results ho gaye, toh loop break kar do
+      // Strict 20 limit
       if (resultsMap.size === 20) break;
     }
 
-    // Forcefully maximum 20 hi bhejenge frontend ko
-    return res.status(200).json({ query: q, results: Array.from(resultsMap.values()).slice(0, 20) });
+    return res.status(200).json({ query: q, results: Array.from(resultsMap.values()) });
   } catch (error) {
     return res.status(502).json({ error: error.message });
   }
