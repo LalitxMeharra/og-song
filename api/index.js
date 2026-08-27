@@ -310,57 +310,64 @@ export default async function handler(req, res) {
     }
   }
 
-  // 3. SEARCH (MAX RESULTS + NO UNKNOWN ARTIST FIX)
+  // 3. SEARCH (LOCKED TO MAX 20 & ARTIST NAME FIX)
   if (!q) return res.status(400).json({ error: 'Missing search query' });
 
   try {
-    // Page 1 aur Page 2 dono ko ek sath fetch karne ke liye Helper function
-    const fetchPage = async (pageNo) => {
-      const searchUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&q=${encodeURIComponent(q)}&n=30&p=${pageNo}&_format=json&_marker=0&cc=in`;
-      const res = await fetch(searchUrl, { headers });
-      return res.json();
-    };
+    // Sirf ek page fetch karenge, aur n=20 set karenge
+    const searchUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&q=${encodeURIComponent(q)}&n=25&p=1&_format=json&_marker=0&cc=in`;
+    const response = await fetch(searchUrl, { headers });
+    const data = await response.json();
 
-    // Parallel fetching for blazing speed (Page 1 + Page 2 = 40+ Results)
-    const [dataPage1, dataPage2] = await Promise.all([
-      fetchPage(1).catch(() => ({})),
-      fetchPage(2).catch(() => ({}))
-    ]);
-
-    // Dono pages ke results ko merge karo
-    const rawSongs1 = Array.isArray(dataPage1?.results) ? dataPage1.results : [];
-    const rawSongs2 = Array.isArray(dataPage2?.results) ? dataPage2.results : [];
-    const combinedSongs = [...rawSongs1, ...rawSongs2];
-    
+    const rawSongs = Array.isArray(data?.results) ? data.results : [];
     const resultsMap = new Map();
 
-    for (const item of combinedSongs) {
+    for (const item of rawSongs) {
       const itemPid = String(item.id || item.more_info?.song_pids || '').split(',')[0].trim();
       if (!itemPid || resultsMap.has(itemPid)) continue;
 
-      // ULTIMATE ARTIST EXTRACTOR (Koi gaana unknown nahi jayega)
-      let artistName = item.more_info?.primary_artists 
-                    || item.more_info?.singers 
-                    || item.subtitle 
-                    || item.description 
-                    || 'Unknown Artist';
+      // 🚨 AGGRESSIVE ARTIST EXTRACTOR 🚨
+      // JioSaavn alag-alag gaano ke liye alag jagah artist chupata hai
+      let artistName = item?.more_info?.primary_artists 
+                    || item?.more_info?.singers 
+                    || item?.subtitle 
+                    || item?.description 
+                    || item?.artist 
+                    || '';
 
-      // Agar description mein "Song · Arijit Singh" likha ho, toh sirf artist nikalenge
-      if (typeof artistName === 'string' && artistName.includes(' · ')) {
-        artistName = artistName.split(' · ')[1];
+      // Agar data string hai, toh usko theek se clean karenge
+      if (typeof artistName === 'string') {
+        // "Song · Artist" format ko split karna
+        if (artistName.includes(' · ')) {
+          artistName = artistName.split(' · ')[1];
+        } 
+        // "Song - Artist" format ko split karna
+        else if (artistName.includes(' - ')) {
+          artistName = artistName.split(' - ')[1];
+        }
+      }
+
+      // Final cleanup, agar tab bhi blank hai to hi 'Unknown' warna proper naam
+      artistName = cleanText(artistName);
+      if (!artistName || artistName.toLowerCase() === 'song') {
+        artistName = 'Unknown Artist';
       }
 
       resultsMap.set(itemPid, {
         id: itemPid,
         pid: itemPid,
         title: cleanText(item.title || item.song),
-        artist: cleanText(artistName),
+        artist: artistName,
         album: cleanText(item.more_info?.album || item.album || 'Single'),
         image: String(item.image || '').replace('50x50', '500x500').replace('150x150', '500x500')
       });
+
+      // Agar humare paas 20 unique results ho gaye, toh loop break kar do
+      if (resultsMap.size === 20) break;
     }
 
-    return res.status(200).json({ query: q, results: Array.from(resultsMap.values()) });
+    // Forcefully maximum 20 hi bhejenge frontend ko
+    return res.status(200).json({ query: q, results: Array.from(resultsMap.values()).slice(0, 20) });
   } catch (error) {
     return res.status(502).json({ error: error.message });
   }
