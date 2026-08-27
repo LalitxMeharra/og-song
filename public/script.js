@@ -1,4 +1,4 @@
-// --- GLOBAL STATE --
+// --- GLOBAL STATE ---
 let currentSongData = null;
 let allSearchResults = [];
 let currentSearchPage = 1;
@@ -15,6 +15,7 @@ const dlModal = document.getElementById('dlModal');
 window.onload = () => {
   loadHomeData();
   renderFavorites();
+  renderLibrary();
   renderArchive();
 };
 
@@ -54,10 +55,11 @@ navItems.forEach(item => {
     switchView(item.dataset.target);
     if(item.dataset.target === 'archiveView') renderArchive();
     if(item.dataset.target === 'homeView') renderFavorites();
+    if(item.dataset.target === 'playlistView') renderLibrary();
   });
 });
 
-// --- HOME DATA & THE ALBUM BUG FIX ---
+// --- HOME DATA & THE ALBUM/PLAYLIST BUG FIX ---
 async function loadHomeData() {
   try {
     const res = await fetch('/api/home');
@@ -65,9 +67,8 @@ async function loadHomeData() {
     
     const buildCards = (arr) => (arr || []).map(i => {
       const id = i.id || '';
-      // Determine if it's a song, album, or artist
+      // Determine if it's a song or something else (album/playlist/artist)
       const type = i.type || (i.more_info && i.more_info.featured_station_type) || 'album';
-      // Get the cleanest title possible
       const title = escapeHtml(i.title || i.song || i.more_info?.station_display_text || i.more_info?.query || 'Unknown');
       const img = escapeHtml((i.image || '').replace('150x150', '500x500'));
       
@@ -87,12 +88,11 @@ async function loadHomeData() {
   }
 }
 
-// The Smart Interceptor for Album/Artist clicks
+// 🚨 FIX: Redirecting Albums to Search instead of Play 🚨
 window.handleCardClick = function(id, type, title) {
   if (type === 'song') {
     openTrack(id);
   } else {
-    // Redirect Albums/Playlists/Artists to the Search View to fetch their songs!
     showToast(`Exploring ${title}...`);
     document.getElementById('q').value = title;
     document.getElementById('searchBtn').click();
@@ -204,6 +204,7 @@ async function openTrack(pid) {
     
     audio.play().then(() => {
       setPlayState(true);
+      // 🚨 FIX: Force Full Player to Open Immediately 🚨
       fullPlayer.classList.add('open');
     }).catch(() => {
       setPlayState(false);
@@ -211,7 +212,7 @@ async function openTrack(pid) {
     });
 
     saveToArchive(data);
-    checkFavoriteState(data.pid);
+    checkActionStates(data.pid);
   } catch (err) {
     showToast('Track Error: ' + err.message);
   }
@@ -222,6 +223,7 @@ miniPlayer.addEventListener('click', (e) => {
   if(e.target.id === 'mpPlayBtn') return; 
   fullPlayer.classList.add('open');
 });
+// 🚨 FIX: Close button only hides player, DOES NOT stop audio 🚨
 document.getElementById('closePlayerBtn').addEventListener('click', () => fullPlayer.classList.remove('open'));
 
 function togglePlay() {
@@ -282,7 +284,6 @@ function renderArchive() {
     list.innerHTML = `<div style="padding:24px;text-align:center;font-family:'Space Mono';border:2px dashed var(--border-dark);">No playback history found.</div>`;
     return;
   }
-  
   list.innerHTML = archive.map(r => `
     <div class="result-card" onclick="openTrack('${r.pid}')">
       <img class="result-img" src="${r.image}" alt="Cover">
@@ -295,33 +296,46 @@ function renderArchive() {
   `).join('');
 }
 
-// --- LOCAL STORAGE: FAVORITES ---
+// --- LOCAL STORAGE: FAVORITES & LIBRARY ---
 const favBtn = document.getElementById('favBtn');
-favBtn.addEventListener('click', () => {
+const libBtn = document.getElementById('libBtn');
+
+function toggleStorage(key, btnElem, activeIcon, inactiveIcon, addMsg, removeMsg) {
   if(!currentSongData) return;
-  let favs = JSON.parse(localStorage.getItem('og_favorites') || '[]');
-  const exists = favs.find(s => s.pid === currentSongData.pid);
+  let items = JSON.parse(localStorage.getItem(key) || '[]');
+  const exists = items.find(s => s.pid === currentSongData.pid);
   
   if(exists) {
-    favs = favs.filter(s => s.pid !== currentSongData.pid);
-    favBtn.textContent = '♡'; favBtn.classList.remove('active');
-    showToast('Removed from favorites');
+    items = items.filter(s => s.pid !== currentSongData.pid);
+    btnElem.textContent = inactiveIcon; btnElem.classList.remove('active');
+    showToast(removeMsg);
   } else {
-    favs.unshift(currentSongData);
-    favBtn.textContent = '♥'; favBtn.classList.add('active');
-    showToast('Added to favorites ♥');
+    items.unshift(currentSongData);
+    btnElem.textContent = activeIcon; btnElem.classList.add('active');
+    showToast(addMsg);
   }
-  localStorage.setItem('og_favorites', JSON.stringify(favs));
+  localStorage.setItem(key, JSON.stringify(items));
+}
+
+favBtn.addEventListener('click', () => {
+  toggleStorage('og_favorites', favBtn, '♥', '♡', 'Added to favorites ♥', 'Removed from favorites');
   renderFavorites();
 });
 
-function checkFavoriteState(pid) {
+libBtn.addEventListener('click', () => {
+  toggleStorage('og_library', libBtn, '✓', '+', 'Added to Library ✓', 'Removed from Library');
+  renderLibrary();
+});
+
+function checkActionStates(pid) {
   const favs = JSON.parse(localStorage.getItem('og_favorites') || '[]');
-  if(favs.find(s => s.pid === pid)) {
-    favBtn.textContent = '♥'; favBtn.classList.add('active');
-  } else {
-    favBtn.textContent = '♡'; favBtn.classList.remove('active');
-  }
+  const libs = JSON.parse(localStorage.getItem('og_library') || '[]');
+  
+  if(favs.find(s => s.pid === pid)) { favBtn.textContent = '♥'; favBtn.classList.add('active'); } 
+  else { favBtn.textContent = '♡'; favBtn.classList.remove('active'); }
+  
+  if(libs.find(s => s.pid === pid)) { libBtn.textContent = '✓'; libBtn.classList.add('active'); } 
+  else { libBtn.textContent = '+'; libBtn.classList.remove('active'); }
 }
 
 function renderFavorites() {
@@ -331,11 +345,29 @@ function renderFavorites() {
     grid.innerHTML = `<div style="font-family:'Space Mono';font-size:12px;color:var(--text-muted);padding:10px;">No favorite tracks yet. Play a track and click ♡</div>`;
     return;
   }
-  
   grid.innerHTML = favs.map(i => `
     <div class="grid-card" onclick="openTrack('${i.pid}')">
       <img src="${i.image}" alt="Art">
       <div class="grid-title">${i.title}</div>
+    </div>
+  `).join('');
+}
+
+function renderLibrary() {
+  const libs = JSON.parse(localStorage.getItem('og_library') || '[]');
+  const list = document.getElementById('playlistGrid');
+  if(!libs.length) {
+    list.innerHTML = `<div style="padding:24px;text-align:center;font-family:'Space Mono';border:2px dashed var(--border-dark);">Your library is empty. Click + to add tracks.</div>`;
+    return;
+  }
+  list.innerHTML = libs.map(r => `
+    <div class="result-card" onclick="openTrack('${r.pid}')">
+      <img class="result-img" src="${r.image}" alt="Cover">
+      <div class="result-info">
+        <div class="result-title">${r.title}</div>
+        <div class="result-meta">${r.artist}</div>
+      </div>
+      <button class="btn-play-badge">再生 PLAY</button>
     </div>
   `).join('');
 }
