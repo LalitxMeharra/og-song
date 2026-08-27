@@ -174,7 +174,6 @@ function cleanText(value = '') {
 function decryptUrl(encryptedUrl) {
   try {
     if (!encryptedUrl) return null;
-
     let cleaned = String(encryptedUrl).trim().replace(/\s+/g, '');
     let missing = cleaned.length % 4;
     if (missing) cleaned += '='.repeat(4 - missing);
@@ -210,14 +209,13 @@ export default async function handler(req, res) {
   const urlObj = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const pathname = urlObj.pathname;
   
-  const q = req.query.q || req.query.query || urlObj.searchParams.get('q') || urlObj.searchParams.get('query');
-  const pid = req.query.pid || req.query.id || req.query.song_pids || urlObj.searchParams.get('pid') || urlObj.searchParams.get('id');
+  const q = req.query.q || urlObj.searchParams.get('q') || '';
+  const pid = req.query.pid || urlObj.searchParams.get('pid') || '';
+  const action = req.query.action || urlObj.searchParams.get('action') || pathname.split('/').pop();
   const downloadUrl = req.query.url || urlObj.searchParams.get('url');
   const filename = req.query.filename || urlObj.searchParams.get('filename');
   const quality = req.query.quality || urlObj.searchParams.get('quality');
-  const action = req.query.action || urlObj.searchParams.get('action');
 
-  // Modified headers to spoof Indian IP and bypass US caching issues
   const headers = {
     'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36',
     'Referer': 'https://www.jiosaavn.com/',
@@ -225,57 +223,53 @@ export default async function handler(req, res) {
     'X-Real-IP': '103.15.255.255'
   };
 
-  // 1. DIRECT STREAM PROXY PIPELINE
-  if (pathname.includes('/download') || action === 'download') {
-    if (!downloadUrl) return res.status(400).json({ error: 'Missing url parameter' });
-
-    let cdnUrl;
-    try {
-      cdnUrl = decodeURIComponent(downloadUrl);
-      new URL(cdnUrl);
-    } catch {
-      return res.status(400).json({ error: 'Invalid url' });
-    }
-
-    const safeBase = (filename || 'song').replace(/[^\w\s.-]/g, '').trim() || 'song';
-    const finalName = `${safeBase}_${quality || '320kbps'}.mp4`;
-
-    try {
-      const upstream = await fetch(cdnUrl, {
-        headers: { 'User-Agent': 'Mozilla/5.0', Accept: '*/*' }
-      });
-
-      if (!upstream.ok || !upstream.body) {
-        return res.status(502).json({ error: 'Upstream stream failed' });
-      }
-
-      const contentLength = upstream.headers.get('content-length');
-
-      res.setHeader('Content-Type', 'application/octet-stream');
-      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(finalName)}"; filename*=UTF-8''${encodeURIComponent(finalName)}`);
-      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      if (contentLength) res.setHeader('Content-Length', contentLength);
-
-      const nodeStream = Readable.fromWeb(upstream.body);
-      nodeStream.on('error', () => { if (!res.headersSent) res.status(500).end(); });
-      req.on('close', () => { if (!res.writableEnded) nodeStream.destroy(); });
-
-      return nodeStream.pipe(res);
-    } catch (err) {
-      if (!res.headersSent) res.status(500).json({ error: 'Stream error: ' + err.message });
-      return;
-    }
-  }
-
-  // 2. SONG DETAILS & STREAM LINKS
-  if (pathname.includes('/details') || action === 'details' || (pid && !q)) {
-    let targetPid = String(pid || '').trim();
-    if (targetPid.includes(',')) targetPid = targetPid.split(',')[0].trim();
-
-    try {
-      const response = await fetch(`https://www.jiosaavn.com/api.php?__call=song.getDetails&cc=in&_marker=0&_format=json&pids=${encodeURIComponent(targetPid)}`, { headers });
+  try {
+    // 1. HOME API (Trending, New Releases, Artists)
+    if (action === 'home' || pathname.includes('/home')) {
+      const homeUrl = `https://www.jiosaavn.com/api.php?__call=webapi.getLaunchData&api_version=4&_format=json&_marker=0&cc=in`;
+      const response = await fetch(homeUrl, { headers });
       const data = await response.json();
 
+      return res.status(200).json({
+        trending: data.new_trending || [],
+        new_releases: data.new_albums || [],
+        artists: (data.radio || []).filter(r => r.featured_station_type === 'artist')
+      });
+    }
+
+    // 2. SEARCH API (Max 20, No Unknown Artist)
+    if (action === 'search' || pathname.includes('/search')) {
+      if (!q) return res.status(400).json({ error: 'Missing query' });
+      const searchUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&q=${encodeURIComponent(q)}&n=25&p=1&_format=json&_marker=0&cc=in`;
+      const response = await fetch(searchUrl, { headers });
+      const data = await response.json();
+
+      const resultsMap = new Map();
+      for (const item of (data.results || [])) {
+        const itemPid = String(item.id || item.more_info?.song_pids || '').split(',')[0].trim();
+        if (!itemPid || resultsMap.has(itemPid)) continue;
+
+        let artistName = item.primary_artists || item?.more_info?.primary_artists || item.singers || item?.subtitle || item?.description || 'Unknown Artist';
+        if (typeof artistName === 'string' && artistName.includes(' · ')) artistName = artistName.split(' · ')[1];
+        
+        resultsMap.set(itemPid, {
+          pid: itemPid,
+          title: cleanText(item.title || item.song),
+          artist: cleanText(artistName),
+          album: cleanText(item.more_info?.album || item.album || 'Single'),
+          image: String(item.image || '').replace('50x50', '500x500').replace('150x150', '500x500')
+        });
+        if (resultsMap.size === 20) break;
+      }
+      return res.status(200).json({ results: Array.from(resultsMap.values()) });
+    }
+
+    // 3. DETAILS API (Decryption)
+    if (action === 'details' || pathname.includes('/details') || (pid && !q)) {
+      const targetPid = String(pid || '').split(',')[0].trim();
+      const response = await fetch(`https://www.jiosaavn.com/api.php?__call=song.getDetails&cc=in&_marker=0&_format=json&pids=${encodeURIComponent(targetPid)}`, { headers });
+      const data = await response.json();
+      
       let songData = data?.[targetPid];
       if (!songData) {
         const keys = Object.keys(data || {});
@@ -293,74 +287,37 @@ export default async function handler(req, res) {
 
       return res.status(200).json({
         success: true,
-        id: targetPid,
+        pid: targetPid,
         title: cleanText(songData.song || songData.title),
         artist: cleanText(songData.primary_artists || songData.more_info?.primary_artists),
         album: cleanText(songData.album || songData.more_info?.album),
         image: (songData.image || songData.more_info?.image || '').replace('50x50', '500x500').replace('150x150', '500x500'),
-        duration: songData.duration || songData.more_info?.duration || '0',
         links: {
           '320': `${basePrefix}_320.${ext}`,
           '160': `${basePrefix}_160.${ext}`,
           '96': `${basePrefix}_96.${ext}`
         }
       });
-    } catch (error) {
-      return res.status(500).json({ error: error.message });
-    }
-  }
-
-  // 3. SEARCH (ROOT LEVEL ARTIST FIX + MAX 20)
-  if (!q) return res.status(400).json({ error: 'Missing search query' });
-
-  try {
-    const searchUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&q=${encodeURIComponent(q)}&n=25&p=1&_format=json&_marker=0&cc=in`;
-    const response = await fetch(searchUrl, { headers });
-    const data = await response.json();
-
-    const rawSongs = Array.isArray(data?.results) ? data.results : [];
-    const resultsMap = new Map();
-
-    for (const item of rawSongs) {
-      // ID root level par check karo, nahi toh more_info mein
-      const itemPid = String(item.id || item.more_info?.song_pids || '').split(',')[0].trim();
-      if (!itemPid || resultsMap.has(itemPid)) continue;
-
-      // 🚨 THE ROOT CAUSE FIX: Checking direct properties first! 🚨
-      let artistName = item.primary_artists 
-                    || item.more_info?.primary_artists 
-                    || item.singers 
-                    || item.more_info?.singers 
-                    || item.subtitle 
-                    || item.description 
-                    || item.artist 
-                    || item.music 
-                    || '';
-
-      if (typeof artistName === 'string') {
-        if (artistName.includes(' · ')) artistName = artistName.split(' · ')[1];
-        else if (artistName.includes(' - ')) artistName = artistName.split(' - ')[1];
-      }
-
-      artistName = cleanText(artistName);
-      if (!artistName || artistName.toLowerCase() === 'song') {
-        artistName = 'Unknown Artist';
-      }
-
-      resultsMap.set(itemPid, {
-        id: itemPid,
-        pid: itemPid,
-        title: cleanText(item.title || item.song),
-        artist: artistName,
-        album: cleanText(item.album || item.more_info?.album || 'Single'),
-        image: String(item.image || '').replace('50x50', '500x500').replace('150x150', '500x500')
-      });
-
-      // Strict 20 limit
-      if (resultsMap.size === 20) break;
     }
 
-    return res.status(200).json({ query: q, results: Array.from(resultsMap.values()) });
+    // 4. DOWNLOAD PROXY
+    if (pathname.includes('/download') || action === 'download') {
+      if (!downloadUrl) return res.status(400).json({ error: 'Missing url parameter' });
+      const cdnUrl = decodeURIComponent(downloadUrl);
+      const safeBase = (filename || 'song').replace(/[^\w\s.-]/g, '').trim() || 'song';
+      const finalName = `${safeBase}_${quality || '320kbps'}.mp4`;
+
+      const upstream = await fetch(cdnUrl, { headers: { 'User-Agent': 'Mozilla/5.0', Accept: '*/*' } });
+      if (!upstream.ok || !upstream.body) return res.status(502).json({ error: 'Upstream stream failed' });
+
+      res.setHeader('Content-Type', 'application/octet-stream');
+      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(finalName)}"; filename*=UTF-8''${encodeURIComponent(finalName)}`);
+      
+      const nodeStream = Readable.fromWeb(upstream.body);
+      return nodeStream.pipe(res);
+    }
+
+    return res.status(400).json({ error: 'Invalid action or endpoint' });
   } catch (error) {
     return res.status(502).json({ error: error.message });
   }
