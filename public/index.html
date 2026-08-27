@@ -5,8 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#f4efe6">
   <title>OG-SONG Downloader — Master Sound.</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Noto+Serif+JP:wght@400;700;900&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
 </head>
@@ -18,13 +16,12 @@
     <div class="nav-badge">極音 320 KBPS</div>
   </nav>
 
-  <!-- MAIN WRAPPER -->
   <div class="container">
     <div class="hero-sun"></div>
 
     <!-- 1. HOME VIEW -->
     <div id="homeView" class="view active">
-      <div class="hero-badge">v4.0.0 · LIVE ENGINE</div>
+      <div class="hero-badge">v4.1.0 · LIVE ENGINE</div>
       <h1 class="hero-title">Discover.<br><span class="red-text">Download</span> Free.</h1>
       
       <div class="section-header"><div class="section-num">01</div><div class="section-title">Your Favorites ❤️</div></div>
@@ -40,25 +37,23 @@
       <div class="horizontal-scroll" id="artistsGrid"></div>
     </div>
 
-    <!-- 2. COLLECTION VIEW (For Albums & Artists) -->
-    <div id="collectionView" class="view" style="display: none;">
+    <!-- 2. COLLECTION VIEW (JioSaavn Style Playlist) -->
+    <div id="collectionView" class="view">
       <button class="back-btn" id="collectionBackBtn">← 戻る BACK</button>
       <div class="collection-header">
         <img id="colImg" src="" alt="Cover">
         <h2 id="colTitle">Title</h2>
         <p id="colSubtitle">Album / Artist</p>
       </div>
-      <div class="section-header"><div class="section-num">#</div><div class="section-title">Tracklist</div></div>
       <div class="results-list" id="collectionList">
         <div style="text-align:center; padding: 20px; font-family:'Space Mono';">Loading tracks...</div>
       </div>
     </div>
 
     <!-- 3. SEARCH VIEW (Live Search Engine) -->
-    <div id="searchView" class="view" style="display: none;">
+    <div id="searchView" class="view">
       <div class="section-header"><div class="section-num">00</div><div class="section-title">Explore / 検索</div></div>
       <div class="search-card">
-        <!-- Live input field without a submit button requirement -->
         <input id="q" type="text" placeholder="Start typing track or artist..." autocomplete="off">
         <div id="searchSpinner" style="display:none; font-family:'Space Mono'; padding-right:10px; color:var(--crimson);">...</div>
       </div>
@@ -74,13 +69,13 @@
     </div>
 
     <!-- 4. LIBRARY VIEW -->
-    <div id="playlistView" class="view" style="display: none;">
+    <div id="playlistView" class="view">
       <div class="section-header"><div class="section-num">#</div><div class="section-title">My Library / プレイリスト</div></div>
       <div id="playlistGrid" class="results-list"></div>
     </div>
 
     <!-- 5. ARCHIVE (HISTORY) VIEW -->
-    <div id="archiveView" class="view" style="display: none;">
+    <div id="archiveView" class="view">
       <div class="section-header"><div class="section-num">#</div><div class="section-title">Playback Archive / 履歴</div></div>
       <div id="archiveList" class="results-list"></div>
     </div>
@@ -111,9 +106,7 @@
       <button class="back-btn" id="closePlayerBtn">↓ 閉じる CLOSE PLAYER</button>
 
       <div class="player-card">
-        <div class="disc-cover" id="discCover">
-          <img id="playerCover" src="" alt="Album Art">
-        </div>
+        <div class="disc-cover" id="discCover"><img id="playerCover" src="" alt="Album Art"></div>
 
         <div class="player-header" style="display:flex; justify-content:space-between; align-items:center;">
           <div style="text-align:left; flex: 1; overflow: hidden;">
@@ -141,17 +134,9 @@
           </div>
 
           <div class="sub-controls">
-            <div class="vol-box">
-              <span>VOL</span>
-              <input type="range" id="vol" min="0" max="100" value="85">
-            </div>
+            <div class="vol-box"><span>VOL</span><input type="range" id="vol" min="0" max="100" value="85"></div>
             <div class="speed-box">
-              <select id="speed">
-                <option value="0.75">0.75×</option>
-                <option value="1" selected>1.0×</option>
-                <option value="1.25">1.25×</option>
-                <option value="1.5">1.5×</option>
-              </select>
+              <select id="speed"><option value="0.75">0.75×</option><option value="1" selected>1.0×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option></select>
             </div>
           </div>
         </div>
@@ -166,9 +151,9 @@
     <div class="modal-box">
       <h3 style="font-family:'Space Mono'; margin-bottom: 16px; border-bottom: 2px dashed var(--border-dark); padding-bottom: 8px;">SELECT INK STAMP</h3>
       <div class="dl-grid">
-        <a id="btn320" class="dl-stamp" href="#" target="_blank" rel="noopener noreferrer"><span class="dl-kbps">320K</span><span class="dl-tag">Ultra HD</span></a>
-        <a id="btn160" class="dl-stamp" href="#" target="_blank" rel="noopener noreferrer"><span class="dl-kbps">160K</span><span class="dl-tag">High</span></a>
-        <a id="btn96" class="dl-stamp" href="#" target="_blank" rel="noopener noreferrer"><span class="dl-kbps">96K</span><span class="dl-tag">Saver</span></a>
+        <a id="btn320" class="dl-stamp" href="#" target="_blank" rel="noopener"><span class="dl-kbps">320K</span><span class="dl-tag">Ultra HD</span></a>
+        <a id="btn160" class="dl-stamp" href="#" target="_blank" rel="noopener"><span class="dl-kbps">160K</span><span class="dl-tag">High</span></a>
+        <a id="btn96" class="dl-stamp" href="#" target="_blank" rel="noopener"><span class="dl-kbps">96K</span><span class="dl-tag">Saver</span></a>
       </div>
       <button class="close-modal" id="closeDlModal">CANCEL / 取消</button>
     </div>
@@ -178,7 +163,7 @@
   <div class="modal-overlay" id="exitModal">
     <div class="modal-box">
       <h3 style="font-family:'Space Mono'; margin-bottom: 12px; color: var(--crimson);">EXIT OG-SONG?</h3>
-      <p style="font-size: 13px; font-family:'Space Mono'; color:var(--text-muted); margin-bottom:24px;">Are you sure you want to close the Dojo?</p>
+      <p style="font-size: 13px; font-family:'Space Mono'; color:var(--text-muted); margin-bottom:24px;">Are you sure you want to leave the Dojo?</p>
       <div style="display: flex; gap: 12px; justify-content: center;">
         <button class="btn-page" id="btnExitYes" style="background:var(--crimson); border-color:var(--crimson);">YES, EXIT</button>
         <button class="btn-page" id="btnExitNo">STAY</button>
@@ -188,7 +173,7 @@
 
   <div class="toast" id="toast"><span class="dot-ind"></span><span id="toastMsg"></span></div>
   <audio id="audio" preload="none"></audio>
-  <footer>© 2026 <strong>OG-SONG Downloader</strong> · Pure Audio Freedom</footer>
+  <footer>© 2026 <strong>OG-SONG Downloader</strong></footer>
 
   <script src="/script.js" defer></script>
 </body>
