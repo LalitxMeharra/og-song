@@ -12,27 +12,21 @@
 </head>
 <body>
 
+  <!-- TOPBAR -->
   <nav>
     <a href="/" class="nav-logo">OG-SONG<span>.</span>DL</a>
     <div class="nav-badge">極音 320 KBPS</div>
   </nav>
 
+  <!-- MAIN WRAPPER -->
   <div class="container">
     <div class="hero-sun"></div>
 
-    <!-- 1. HOME VIEW (Active by default) -->
+    <!-- 1. HOME VIEW -->
     <div id="homeView" class="view active">
-      <div class="hero-badge">v3.1.0 · MASTER SOUND</div>
+      <div class="hero-badge">v4.0.0 · LIVE ENGINE</div>
       <h1 class="hero-title">Discover.<br><span class="red-text">Download</span> Free.</h1>
-      <p class="hero-desc">Stream and download studio quality tracks without subscriptions, ads, or redirects.</p>
-
-      <div class="stats-bar">
-        <div class="stat-item"><span class="stat-num">320k</span><span class="stat-label">Bitrate</span></div>
-        <div class="stat-item"><span class="stat-num">0s</span><span class="stat-label">Wait</span></div>
-        <div class="stat-item"><span class="stat-num">₹0</span><span class="stat-label">Cost</span></div>
-        <div class="stat-item"><span class="stat-num">AAC</span><span class="stat-label">Engine</span></div>
-      </div>
-
+      
       <div class="section-header"><div class="section-num">01</div><div class="section-title">Your Favorites ❤️</div></div>
       <div class="horizontal-scroll" id="favoritesGrid"></div>
 
@@ -46,33 +40,52 @@
       <div class="horizontal-scroll" id="artistsGrid"></div>
     </div>
 
-    <!-- 2. SEARCH VIEW (Fixed visibility bug) -->
-    <div id="searchView" class="view">
-      <div class="section-header"><div class="section-num">00</div><div class="section-title">Explore / 検索</div></div>
-      <form id="searchForm" class="search-card">
-        <input id="q" type="text" placeholder="Search track, artist, or album..." autocomplete="off" required>
-        <button type="submit" class="btn-search" id="searchBtn">SEARCH</button>
-      </form>
-      <div class="results-list" id="resultsList"></div>
-      <div class="pagination-controls" id="paginationControls" style="display: none;">
-        <button type="button" id="prevPageBtn" class="btn-page">← PREVIOUS</button>
-        <span id="pageIndicator" class="page-indicator">PAGE 1 / 2</span>
-        <button type="button" id="nextPageBtn" class="btn-page">NEXT BATCH →</button>
+    <!-- 2. COLLECTION VIEW (For Albums & Artists) -->
+    <div id="collectionView" class="view" style="display: none;">
+      <button class="back-btn" id="collectionBackBtn">← 戻る BACK</button>
+      <div class="collection-header">
+        <img id="colImg" src="" alt="Cover">
+        <h2 id="colTitle">Title</h2>
+        <p id="colSubtitle">Album / Artist</p>
+      </div>
+      <div class="section-header"><div class="section-num">#</div><div class="section-title">Tracklist</div></div>
+      <div class="results-list" id="collectionList">
+        <div style="text-align:center; padding: 20px; font-family:'Space Mono';">Loading tracks...</div>
       </div>
     </div>
 
-    <!-- 3. LIBRARY VIEW -->
-    <div id="playlistView" class="view">
+    <!-- 3. SEARCH VIEW (Live Search Engine) -->
+    <div id="searchView" class="view" style="display: none;">
+      <div class="section-header"><div class="section-num">00</div><div class="section-title">Explore / 検索</div></div>
+      <div class="search-card">
+        <!-- Live input field without a submit button requirement -->
+        <input id="q" type="text" placeholder="Start typing track or artist..." autocomplete="off">
+        <div id="searchSpinner" style="display:none; font-family:'Space Mono'; padding-right:10px; color:var(--crimson);">...</div>
+      </div>
+      
+      <!-- Top Match Highlight -->
+      <div id="topMatchContainer" style="display:none; margin-bottom: 20px;">
+        <div class="section-title" style="font-size: 13px; color: var(--text-muted); margin-bottom:8px;">TOP MATCH</div>
+        <div id="topMatchCard"></div>
+      </div>
+
+      <div class="section-title" id="otherResultsTitle" style="font-size: 13px; color: var(--text-muted); display:none;">OTHER RESULTS</div>
+      <div class="results-list" id="resultsList"></div>
+    </div>
+
+    <!-- 4. LIBRARY VIEW -->
+    <div id="playlistView" class="view" style="display: none;">
       <div class="section-header"><div class="section-num">#</div><div class="section-title">My Library / プレイリスト</div></div>
       <div id="playlistGrid" class="results-list"></div>
     </div>
 
-    <!-- 4. ARCHIVE (HISTORY) VIEW -->
-    <div id="archiveView" class="view">
+    <!-- 5. ARCHIVE (HISTORY) VIEW -->
+    <div id="archiveView" class="view" style="display: none;">
       <div class="section-header"><div class="section-num">#</div><div class="section-title">Playback Archive / 履歴</div></div>
       <div id="archiveList" class="results-list"></div>
     </div>
-  </div> 
+
+  </div> <!-- End Container -->
 
   <!-- MINI PLAYER -->
   <div class="mini-player" id="miniPlayer" style="display: none;">
@@ -108,7 +121,6 @@
             <p class="p-artist" id="pArtist">—</p>
             <p class="p-album" id="pAlbum">—</p>
           </div>
-          <!-- ADD TO LIBRARY & FAVORITE BUTTONS -->
           <div style="display: flex; gap: 12px; align-items: center;">
             <button class="action-btn" id="libBtn" title="Add to Library">+</button>
             <button class="action-btn" id="favBtn" title="Add to Favorites">♡</button>
@@ -159,6 +171,18 @@
         <a id="btn96" class="dl-stamp" href="#" target="_blank" rel="noopener noreferrer"><span class="dl-kbps">96K</span><span class="dl-tag">Saver</span></a>
       </div>
       <button class="close-modal" id="closeDlModal">CANCEL / 取消</button>
+    </div>
+  </div>
+
+  <!-- EXIT CONFIRMATION MODAL -->
+  <div class="modal-overlay" id="exitModal">
+    <div class="modal-box">
+      <h3 style="font-family:'Space Mono'; margin-bottom: 12px; color: var(--crimson);">EXIT OG-SONG?</h3>
+      <p style="font-size: 13px; font-family:'Space Mono'; color:var(--text-muted); margin-bottom:24px;">Are you sure you want to close the Dojo?</p>
+      <div style="display: flex; gap: 12px; justify-content: center;">
+        <button class="btn-page" id="btnExitYes" style="background:var(--crimson); border-color:var(--crimson);">YES, EXIT</button>
+        <button class="btn-page" id="btnExitNo">STAY</button>
+      </div>
     </div>
   </div>
 
