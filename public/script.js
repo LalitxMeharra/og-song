@@ -1,4 +1,4 @@
-// --- GLOBAL STATE ---
+// --- GLOBAL STATE --
 let currentSongData = null;
 let allSearchResults = [];
 let currentSearchPage = 1;
