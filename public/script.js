@@ -243,7 +243,11 @@ async function openTrack(pid) {
 }
 
 document.getElementById('closePlayerBtn').addEventListener('click', () => history.back());
-document.getElementById('miniPlayer').addEventListener('click', (e) => { if(e.target.id !== 'mpPlayBtn') Router.navigate('fullPlayer', true); });
+document.getElementById('miniPlayer').addEventListener('click', function(e) {
+  // Agar click Play/Pause button par hua hai, toh player open mat karo (play hone do)
+  if(e.target.closest('#mpPlayBtn')) return; 
+  Router.navigate('fullPlayer', true);
+});
 
 function togglePlay() { if (audio.paused && audio.src) { audio.play(); setPlayState(true); } else { audio.pause(); setPlayState(false); } }
 document.getElementById('playBtn').addEventListener('click', togglePlay);
