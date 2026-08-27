@@ -3,72 +3,92 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#120b07">
-  <title>OG-SONG X — Master Sound</title>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <meta name="theme-color" content="#f4efe6">
+  <title>OG-SONG Downloader — Master Sound. Free. Forever.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Noto+Serif+JP:wght@400;700;900&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 
   <!-- TOPBAR -->
   <nav>
-    <a href="#" class="nav-logo">OG-SONG<span>.</span>X</a>
-    <div class="nav-badge">AURORA DECK</div>
+    <a href="/" class="nav-logo">OG-SONG<span>.</span>DL</a>
+    <div class="nav-badge">極音 320 KBPS READY</div>
   </nav>
 
   <!-- MAIN WRAPPER -->
-  <div class="container" id="mainContainer">
-    
-    <!-- 1. HOME VIEW -->
+  <div class="container">
+    <div class="hero-sun"></div>
+
+    <!-- 1. HOME VIEW (Classic Setup) -->
     <div id="homeView" class="view active">
-      <h1 class="hero-title">Discover.<br><span class="red-text">Master</span> Sound.</h1>
-      
-      <div class="section-title">Your Favorites ❤️</div>
+      <div class="hero-badge">v3.0.0 · AD-FREE SOUND DOJO</div>
+      <h1 class="hero-title">Master Sound.<br><span class="red-text">Download</span> Free.</h1>
+      <p class="hero-desc">Stream and download studio quality tracks without subscriptions, ads, or redirects.</p>
+
+      <!-- STATS BAR -->
+      <div class="stats-bar">
+        <div class="stat-item"><span class="stat-num">320k</span><span class="stat-label">Bitrate</span></div>
+        <div class="stat-item"><span class="stat-num">0s</span><span class="stat-label">Wait</span></div>
+        <div class="stat-item"><span class="stat-num">₹0</span><span class="stat-label">Cost</span></div>
+        <div class="stat-item"><span class="stat-num">AAC</span><span class="stat-label">Engine</span></div>
+      </div>
+
+      <div class="section-header"><div class="section-num">01</div><div class="section-title">Your Favorites ❤️</div></div>
       <div class="horizontal-scroll" id="favoritesGrid"></div>
 
-      <div class="section-title">Trending Now 🔥</div>
+      <div class="section-header"><div class="section-num">02</div><div class="section-title">Trending Now 🔥</div></div>
       <div class="horizontal-scroll" id="trendingGrid"></div>
 
-      <div class="section-title">New Releases 🎵</div>
+      <div class="section-header"><div class="section-num">03</div><div class="section-title">New Releases 🎵</div></div>
       <div class="horizontal-scroll" id="newReleasesGrid"></div>
 
-      <div class="section-title">Artist Radar 🎧</div>
+      <div class="section-header"><div class="section-num">04</div><div class="section-title">Artist Radar 🎧</div></div>
       <div class="horizontal-scroll" id="artistsGrid"></div>
     </div>
 
     <!-- 2. SEARCH VIEW -->
-    <div id="searchView" class="view">
+    <div id="searchView" class="view" style="display: none;">
+      <div class="section-header"><div class="section-num">00</div><div class="section-title">Explore / 検索</div></div>
       <form id="searchForm" class="search-card">
-        <input id="q" type="text" placeholder="Search tracks, artists..." autocomplete="off" required>
-        <button type="submit" class="btn-search" id="searchBtn">SEARCH</button>
+        <input id="q" type="text" placeholder="Search track, artist, or album..." autocomplete="off" required>
+        <button type="submit" class="btn-search" id="searchBtn">探索 SEARCH</button>
       </form>
-      <div id="resultsList" class="results-list"></div>
-      <div class="pagination-controls" id="paginationControls" style="display:none;">
-        <button id="prevPageBtn" class="btn-page">← PREVIOUS</button>
-        <span id="pageIndicator" class="page-indicator">PAGE 1/2</span>
+      <div class="results-list" id="resultsList"></div>
+      <div class="pagination-controls" id="paginationControls" style="display: none;">
+        <button id="prevPageBtn" class="btn-page">← PREVIOUS ARCHIVE</button>
+        <span id="pageIndicator" class="page-indicator">PAGE 1 / 2</span>
         <button id="nextPageBtn" class="btn-page">NEXT BATCH →</button>
       </div>
     </div>
 
     <!-- 3. PLAYLIST VIEW -->
-    <div id="playlistView" class="view">
-      <h1 class="hero-title">Custom<br><span class="red-text">Playlists.</span></h1>
-      <p class="hero-desc">Your personal music collections.</p>
-      <div style="padding: 20px; text-align: center; border: 2px dashed var(--border-dark); border-radius: 8px;">
-        <p style="font-size: 13px; color: var(--text-muted);">Playlist feature coming up next! Stay tuned.</p>
-      </div>
+    <div id="playlistView" class="view" style="display: none;">
+      <div class="section-header"><div class="section-num">#</div><div class="section-title">Custom Playlists</div></div>
+      <div style="padding:24px;text-align:center;font-family:'Space Mono';border:2px dashed var(--border-dark);">Playlist feature coming soon...</div>
     </div>
 
     <!-- 4. ARCHIVE (HISTORY) VIEW -->
-    <div id="archiveView" class="view">
-      <h1 class="hero-title">Playback<br><span class="red-text">Archive.</span></h1>
-      <p class="hero-desc">Your recent listening history.</p>
+    <div id="archiveView" class="view" style="display: none;">
+      <div class="section-header"><div class="section-num">#</div><div class="section-title">Playback Archive / 履歴</div></div>
       <div id="archiveList" class="results-list"></div>
     </div>
 
+  </div> <!-- End Container -->
+
+  <!-- PAPER-STYLE MINI PLAYER -->
+  <div class="mini-player" id="miniPlayer" style="display: none;">
+    <img id="mpCover" src="" alt="Album Art">
+    <div class="mp-info">
+      <div class="mp-title" id="mpTitle">Title</div>
+      <div class="mp-artist" id="mpArtist">Artist</div>
+    </div>
+    <button class="p-btn p-play" id="mpPlayBtn" style="width:36px; height:36px;">▶</button>
   </div>
 
-  <!-- BOTTOM NAVIGATION (Home -> Search -> Playlist -> Archive) -->
+  <!-- PAPER-STYLE BOTTOM NAV -->
   <div class="bottom-nav">
     <div class="nav-item active" data-target="homeView">🏠<br>Home</div>
     <div class="nav-item" data-target="searchView">🔍<br>Explore</div>
@@ -76,61 +96,88 @@
     <div class="nav-item" data-target="archiveView">⏳<br>Archive</div>
   </div>
 
-  <!-- MINI PLAYER (Always on bottom when playing) -->
-  <div class="mini-player" id="miniPlayer" style="display:none;">
-    <img id="mpCover" src="" alt="Cover">
-    <div class="mp-info">
-      <div class="mp-title" id="mpTitle">Title</div>
-      <div class="mp-artist" id="mpArtist">Artist</div>
-    </div>
-    <button class="mp-btn" id="mpPlayBtn">▶</button>
-  </div>
-
-  <!-- FULL PLAYER OVERLAY -->
+  <!-- CYBER DOJO FULL PLAYER OVERLAY -->
   <div class="full-player" id="fullPlayer">
-    <button class="close-player" id="closePlayerBtn">↓ Close Player</button>
-    <div class="player-card">
-      <div class="disc-cover" id="discCover"><img id="playerCover" src="" alt="Cover"></div>
-      
-      <div class="player-header">
-        <div>
-          <h2 class="p-title" id="pTitle">—</h2>
-          <p class="p-artist" id="pArtist">—</p>
-        </div>
-        <button class="action-btn" id="favBtn" title="Add to Favorites">♡</button>
-      </div>
+    <div class="player-container">
+      <button class="back-btn" id="closePlayerBtn">↓ 閉じる CLOSE PLAYER</button>
 
-      <div class="control-panel">
-        <div class="transport-row">
-          <button class="p-btn" id="rewindBtn">-10s</button>
-          <button class="p-btn p-play" id="playBtn">▶</button>
-          <button class="p-btn" id="fwdBtn">+10s</button>
+      <div class="player-card">
+        <div class="disc-cover" id="discCover">
+          <img id="playerCover" src="" alt="Album Art">
         </div>
-        <div class="seek-wrap">
-          <span class="time" id="curTime">0:00</span>
-          <input type="range" id="seek" min="0" max="100" value="0" step="0.1">
-          <span class="time" id="durTime">0:00</span>
-        </div>
-      </div>
 
-      <button class="btn-download-popup" id="openDlModal">⬇️ Download Audio</button>
+        <div class="player-header" style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="text-align:left;">
+            <h2 class="p-title" id="pTitle">—</h2>
+            <p class="p-artist" id="pArtist">—</p>
+            <p class="p-album" id="pAlbum">—</p>
+          </div>
+          <button class="action-btn" id="favBtn" title="Add to Favorites">♡</button>
+        </div>
+
+        <!-- CUSTOM AUDIO ENGINE CONTROLS -->
+        <div class="control-panel">
+          <div class="transport-row">
+            <button class="p-btn" id="rewindBtn" title="Rewind 10s">-10s</button>
+            <button class="p-btn p-play" id="playBtn">▶</button>
+            <button class="p-btn" id="fwdBtn" title="Forward 10s">+10s</button>
+
+            <div class="seek-wrap">
+              <span class="time" id="curTime">0:00</span>
+              <input type="range" id="seek" min="0" max="100" value="0" step="0.1">
+              <span class="time" id="durTime">0:00</span>
+            </div>
+          </div>
+
+          <div class="sub-controls">
+            <div class="vol-box">
+              <span>VOL</span>
+              <input type="range" id="vol" min="0" max="100" value="85">
+            </div>
+            <div class="speed-box">
+              <select id="speed">
+                <option value="0.75">0.75×</option>
+                <option value="1" selected>1.0×</option>
+                <option value="1.25">1.25×</option>
+                <option value="1.5">1.5×</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- SINGLE DOWNLOAD TRIGGER BUTTON -->
+        <button class="btn-download-popup" id="openDlModal">⚡ DOWNLOAD AUDIO STAMPS</button>
+      </div>
     </div>
   </div>
 
-  <!-- DOWNLOAD MODAL POPUP -->
+  <!-- DOWNLOAD MODAL (Classic Ink Stamp Style) -->
   <div class="modal-overlay" id="dlModal">
     <div class="modal-box">
-      <h3>Select Audio Quality</h3>
-      <a id="btn320" class="dl-option" href="#" target="_blank" rel="noopener">320 KBPS <span class="tag">Ultra HD</span></a>
-      <a id="btn160" class="dl-option" href="#" target="_blank" rel="noopener">160 KBPS <span class="tag">Standard</span></a>
-      <a id="btn96" class="dl-option" href="#" target="_blank" rel="noopener">96 KBPS <span class="tag">Saver</span></a>
-      <button class="close-modal" id="closeDlModal">Cancel</button>
+      <h3 style="font-family:'Space Mono'; margin-bottom: 16px; border-bottom: 2px dashed var(--border-dark); padding-bottom: 8px;">SELECT INK STAMP</h3>
+      <div class="dl-grid">
+        <a id="btn320" class="dl-stamp" href="#" target="_blank" rel="noopener noreferrer">
+          <span class="dl-kbps">320K</span>
+          <span class="dl-tag">Ultra HD</span>
+        </a>
+        <a id="btn160" class="dl-stamp" href="#" target="_blank" rel="noopener noreferrer">
+          <span class="dl-kbps">160K</span>
+          <span class="dl-tag">High</span>
+        </a>
+        <a id="btn96" class="dl-stamp" href="#" target="_blank" rel="noopener noreferrer">
+          <span class="dl-kbps">96K</span>
+          <span class="dl-tag">Saver</span>
+        </a>
+      </div>
+      <button class="close-modal" id="closeDlModal">CANCEL / 取消</button>
     </div>
   </div>
 
-  <!-- NATIVE AUDIO ENGINE -->
+  <!-- TOAST & AUDIO -->
+  <div class="toast" id="toast"><span class="dot-ind"></span><span id="toastMsg"></span></div>
   <audio id="audio" preload="none"></audio>
-  <div class="toast" id="toast"><span id="toastMsg"></span></div>
+
+  <footer>© 2026 <strong>OG-SONG Downloader</strong> · Pure Audio Freedom</footer>
 
   <script src="/script.js" defer></script>
 </body>
