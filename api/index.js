@@ -310,39 +310,32 @@ export default async function handler(req, res) {
     }
   }
 
-  // 3. SEARCH (MAXIMUM RESULTS & EXACT SEQUENCE)
+  // 3. SEARCH (MAXIMUM RESULTS FIX)
   if (!q) return res.status(400).json({ error: 'Missing search query' });
 
   try {
-    // autocomplete.get ki jagah search.getResults use kar rahe hain
-    // n=50 matlab ek baar mein 50 results aayenge (tum chaho to 100 bhi kar sakte ho)
     const searchUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&q=${encodeURIComponent(q)}&n=50&p=1&_format=json&_marker=0&cc=in`;
     const response = await fetch(searchUrl, { headers });
     const data = await response.json();
 
-    // search.getResults mein data directly 'results' array mein aata hai
     const rawSongs = Array.isArray(data?.results) ? data.results : [];
-    
     const resultsMap = new Map();
 
     for (const item of rawSongs) {
-      // JioSaavn ke full search mein data structure thoda alag hota hai
       const itemPid = String(item.id || item.more_info?.song_pids || '').split(',')[0].trim();
-      
       if (!itemPid || resultsMap.has(itemPid)) continue;
 
       resultsMap.set(itemPid, {
         id: itemPid,
         pid: itemPid,
-        title: cleanText(item.title),
-        // Artist and Album fields structure is slightly different here
-        artist: cleanText(item.more_info?.primary_artists || item.subtitle || 'Unknown'),
+        // Naye keys ke hisaab se mapping
+        title: cleanText(item.title || item.song),
+        artist: cleanText(item.subtitle || item.more_info?.singers || 'Unknown Artist'),
         album: cleanText(item.more_info?.album || item.album || 'Single'),
         image: String(item.image || '').replace('50x50', '500x500').replace('150x150', '500x500')
       });
     }
 
-    // Map se array banayenge toh exact wahi order rahega jo JioSaavn ne bheja tha
     return res.status(200).json({ query: q, results: Array.from(resultsMap.values()) });
   } catch (error) {
     return res.status(502).json({ error: error.message });
