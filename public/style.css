@@ -114,3 +114,39 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px;
 .toast { position: fixed; left: 50%; bottom: 90px; transform: translate(-50%, 20px); background: var(--ink-black); border: 2px solid var(--border-dark); color: var(--bg-paper); font-family: 'Space Mono', monospace; padding: 10px 18px; font-size: 12px; box-shadow: 4px 4px 0px var(--crimson); opacity: 0; transition: opacity 0.25s; z-index: 400; display: flex; align-items: center; gap: 8px; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 .toast .dot-ind { width: 7px; height: 7px; border-radius: 50%; background: var(--crimson); flex-shrink: 0; }
+
+/* 1. ANTI-COPY & LONG PRESS BLOCKER */
+body {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+/* Lekin search box me typing allowed honi chahiye */
+input, select, textarea {
+  user-select: auto;
+  -webkit-user-select: auto;
+}
+
+/* 2. PREMIUM HOVER & TRANSITION EFFECTS */
+.grid-card { transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s; }
+.grid-card:hover { transform: translateY(-5px); box-shadow: 6px 6px 0px var(--crimson); border-color: var(--crimson); }
+.result-card { transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s; }
+.result-card:hover { transform: translateX(5px); box-shadow: 4px 4px 0px var(--crimson); border-color: var(--crimson); }
+.p-btn { transition: transform 0.15s, background 0.15s; }
+.p-btn:hover { background: var(--cream-card); transform: scale(1.1); }
+.p-play:hover { background: var(--crimson); transform: scale(1.1); }
+.action-btn:hover { transform: scale(1.2); }
+
+/* 3. PLAYER UI FIXES (SVGs) */
+.vol-box { display: flex; align-items: center; gap: 8px; color: var(--ink-black); }
+.vol-box input[type=range] { width: 75px; height: 4px; border: 1px solid var(--border-dark); }
+
+/* 4. PREMIUM FOOTER STYLING */
+.premium-footer { background: var(--ink-black); color: var(--bg-paper); padding: 40px 20px; text-align: center; margin-top: 60px; border-top: 4px solid var(--crimson); }
+.f-brand { font-family: 'Cinzel Decorative', serif; font-size: 24px; font-weight: 900; margin-bottom: 8px; }
+.f-brand span { color: var(--crimson); }
+.f-tagline { font-family: 'Space Mono', monospace; font-size: 12px; color: #a89a8c; margin-bottom: 20px; }
+.f-links { font-family: 'Space Mono', monospace; font-size: 11px; margin-bottom: 24px; }
+.f-links a { color: var(--bg-paper); text-decoration: none; padding: 0 8px; transition: color 0.2s; }
+.f-links a:hover { color: var(--crimson); text-decoration: underline; }
+.f-copy { font-family: 'Space Mono', monospace; font-size: 10px; color: #6e645a; border-top: 1px dashed #3a2518; padding-top: 16px; max-width: 320px; margin: 0 auto; }
