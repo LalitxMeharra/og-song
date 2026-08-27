@@ -307,7 +307,7 @@ export default async function handler(req, res) {
     }
   }
 
-      // 3. SEARCH (DEBUG MODE: ONLY TOP QUERY)
+  // 3. SEARCH (RAW JSON TEST)
   if (!q) return res.status(400).json({ error: 'Missing search query' });
 
   try {
@@ -315,31 +315,12 @@ export default async function handler(req, res) {
     const response = await fetch(searchUrl, { headers });
     const data = await response.json();
 
-    const results = [];
-
-    // Sirf topquery check kar rahe hain debugging ke liye
-    if (data?.topquery?.data) {
-      for (const item of data.topquery.data) {
-        // Sirf gaane filter kar rahe hain (album/artist hata rahe hain)
-        const isSong = item.type === 'song' || (item.more_info && item.more_info.song_pids);
-        if (!isSong) continue;
-
-        const itemPid = String(item.id || item.more_info?.song_pids || '').split(',')[0].trim();
-        if (!itemPid) continue;
-
-        results.push({
-          id: itemPid,
-          pid: itemPid,
-          title: cleanText(item.title),
-          artist: cleanText(item.more_info?.primary_artists || item.description || 'Unknown'),
-          album: cleanText(item.album || 'Single'),
-          image: String(item.image || '').replace('50x50', '500x500')
-        });
-      }
-    }
-
-    // Ye strictly sirf topquery wala single gaana bhejega
-    return res.status(200).json({ query: q, results });
+    // Vercel JioSaavn se jo bhi dekh raha hai, wo direct browser pe phek do!
+    return res.status(200).json({ 
+      query: q, 
+      vercel_topquery: data?.topquery?.data || [],
+      vercel_songs: data?.songs?.data || [] 
+    });
   } catch (error) {
     return res.status(502).json({ error: error.message });
   }
