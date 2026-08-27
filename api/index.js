@@ -307,7 +307,7 @@ export default async function handler(req, res) {
     }
   }
 
-    // 3. SEARCH
+      // 3. SEARCH (DEBUG MODE: ONLY TOP QUERY)
   if (!q) return res.status(400).json({ error: 'Missing search query' });
 
   try {
@@ -315,38 +315,31 @@ export default async function handler(req, res) {
     const response = await fetch(searchUrl, { headers });
     const data = await response.json();
 
-    // Dono arrays ko uthao, agar undefined hain toh fallback mein khali array [] bana do
-    const rawTop = Array.isArray(data?.topquery?.data) ? data.topquery.data : [];
-    const rawSongs = Array.isArray(data?.songs?.data) ? data.songs.data : [];
-    
-    // Dono ko ek single flat list mein combine kar do
-    const combined = [...rawTop, ...rawSongs];
-    
-    // Duplicates hatane ke liye Map ka use (Map ek ID ko strictly ek hi baar store karta hai)
-    const resultsMap = new Map();
+    const results = [];
 
-    for (const item of combined) {
-      // Check karo ki object me strictly gaane ka hi data ho
-      const isSong = item.type === 'song' || (item.more_info && item.more_info.song_pids);
-      if (!isSong) continue;
+    // Sirf topquery check kar rahe hain debugging ke liye
+    if (data?.topquery?.data) {
+      for (const item of data.topquery.data) {
+        // Sirf gaane filter kar rahe hain (album/artist hata rahe hain)
+        const isSong = item.type === 'song' || (item.more_info && item.more_info.song_pids);
+        if (!isSong) continue;
 
-      const itemPid = String(item.id || item.more_info?.song_pids || '').split(',')[0].trim();
-      
-      // Agar PID nahi mili ya ID already Map mein add ho chuki hai, toh skip karo
-      if (!itemPid || resultsMap.has(itemPid)) continue;
+        const itemPid = String(item.id || item.more_info?.song_pids || '').split(',')[0].trim();
+        if (!itemPid) continue;
 
-      resultsMap.set(itemPid, {
-        id: itemPid,
-        pid: itemPid,
-        title: cleanText(item.title),
-        artist: cleanText(item.more_info?.primary_artists || item.description || 'Unknown'),
-        album: cleanText(item.album || 'Single'),
-        image: String(item.image || '').replace('50x50', '500x500')
-      });
+        results.push({
+          id: itemPid,
+          pid: itemPid,
+          title: cleanText(item.title),
+          artist: cleanText(item.more_info?.primary_artists || item.description || 'Unknown'),
+          album: cleanText(item.album || 'Single'),
+          image: String(item.image || '').replace('50x50', '500x500')
+        });
+      }
     }
 
-    // Map ki values ko array mein convert karke frontend ko bhej do
-    return res.status(200).json({ query: q, results: Array.from(resultsMap.values()) });
+    // Ye strictly sirf topquery wala single gaana bhejega
+    return res.status(200).json({ query: q, results });
   } catch (error) {
     return res.status(502).json({ error: error.message });
   }
