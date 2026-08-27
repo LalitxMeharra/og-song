@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#f4efe6">
-  <title>OG-SONG Downloader — Master Sound. Free. Forever.</title>
+  <title>OG-SONG Downloader — Master Sound.</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Noto+Serif+JP:wght@400;700;900&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
@@ -15,20 +15,19 @@
   <!-- TOPBAR -->
   <nav>
     <a href="/" class="nav-logo">OG-SONG<span>.</span>DL</a>
-    <div class="nav-badge">極音 320 KBPS READY</div>
+    <div class="nav-badge">極音 320 KBPS</div>
   </nav>
 
   <!-- MAIN WRAPPER -->
   <div class="container">
     <div class="hero-sun"></div>
 
-    <!-- 1. HOME VIEW (Classic Setup) -->
+    <!-- 1. HOME VIEW -->
     <div id="homeView" class="view active">
-      <div class="hero-badge">v3.0.0 · AD-FREE SOUND DOJO</div>
-      <h1 class="hero-title">Master Sound.<br><span class="red-text">Download</span> Free.</h1>
+      <div class="hero-badge">v3.1.0 · MASTER SOUND</div>
+      <h1 class="hero-title">Discover.<br><span class="red-text">Download</span> Free.</h1>
       <p class="hero-desc">Stream and download studio quality tracks without subscriptions, ads, or redirects.</p>
 
-      <!-- STATS BAR -->
       <div class="stats-bar">
         <div class="stat-item"><span class="stat-num">320k</span><span class="stat-label">Bitrate</span></div>
         <div class="stat-item"><span class="stat-num">0s</span><span class="stat-label">Wait</span></div>
@@ -54,11 +53,11 @@
       <div class="section-header"><div class="section-num">00</div><div class="section-title">Explore / 検索</div></div>
       <form id="searchForm" class="search-card">
         <input id="q" type="text" placeholder="Search track, artist, or album..." autocomplete="off" required>
-        <button type="submit" class="btn-search" id="searchBtn">探索 SEARCH</button>
+        <button type="submit" class="btn-search" id="searchBtn">SEARCH</button>
       </form>
       <div class="results-list" id="resultsList"></div>
       <div class="pagination-controls" id="paginationControls" style="display: none;">
-        <button id="prevPageBtn" class="btn-page">← PREVIOUS ARCHIVE</button>
+        <button id="prevPageBtn" class="btn-page">← PREVIOUS</button>
         <span id="pageIndicator" class="page-indicator">PAGE 1 / 2</span>
         <button id="nextPageBtn" class="btn-page">NEXT BATCH →</button>
       </div>
@@ -66,8 +65,8 @@
 
     <!-- 3. PLAYLIST VIEW -->
     <div id="playlistView" class="view" style="display: none;">
-      <div class="section-header"><div class="section-num">#</div><div class="section-title">Custom Playlists</div></div>
-      <div style="padding:24px;text-align:center;font-family:'Space Mono';border:2px dashed var(--border-dark);">Playlist feature coming soon...</div>
+      <div class="section-header"><div class="section-num">#</div><div class="section-title">My Library / プレイリスト</div></div>
+      <div id="playlistGrid" class="results-list"></div>
     </div>
 
     <!-- 4. ARCHIVE (HISTORY) VIEW -->
@@ -92,7 +91,7 @@
   <div class="bottom-nav">
     <div class="nav-item active" data-target="homeView">🏠<br>Home</div>
     <div class="nav-item" data-target="searchView">🔍<br>Explore</div>
-    <div class="nav-item" data-target="playlistView">🎵<br>Playlist</div>
+    <div class="nav-item" data-target="playlistView">🎵<br>Library</div>
     <div class="nav-item" data-target="archiveView">⏳<br>Archive</div>
   </div>
 
@@ -107,26 +106,33 @@
         </div>
 
         <div class="player-header" style="display:flex; justify-content:space-between; align-items:center;">
-          <div style="text-align:left;">
+          <div style="text-align:left; flex: 1; overflow: hidden;">
             <h2 class="p-title" id="pTitle">—</h2>
             <p class="p-artist" id="pArtist">—</p>
             <p class="p-album" id="pAlbum">—</p>
           </div>
-          <button class="action-btn" id="favBtn" title="Add to Favorites">♡</button>
+          <!-- 🚨 FIX: Add to Library (+) Button Added 🚨 -->
+          <div style="display: flex; gap: 12px; align-items: center;">
+            <button class="action-btn" id="libBtn" title="Add to Library">+</button>
+            <button class="action-btn" id="favBtn" title="Add to Favorites">♡</button>
+          </div>
         </div>
 
-        <!-- CUSTOM AUDIO ENGINE CONTROLS -->
+        <!-- 🚨 FIX: Buttons Overlap Issue Resolved Here 🚨 -->
         <div class="control-panel">
+          
+          <!-- Transport Buttons (Top) -->
           <div class="transport-row">
             <button class="p-btn" id="rewindBtn" title="Rewind 10s">-10s</button>
             <button class="p-btn p-play" id="playBtn">▶</button>
             <button class="p-btn" id="fwdBtn" title="Forward 10s">+10s</button>
+          </div>
 
-            <div class="seek-wrap">
-              <span class="time" id="curTime">0:00</span>
-              <input type="range" id="seek" min="0" max="100" value="0" step="0.1">
-              <span class="time" id="durTime">0:00</span>
-            </div>
+          <!-- Seek Bar (Bottom - separated from buttons) -->
+          <div class="seek-wrap" style="margin-bottom: 16px;">
+            <span class="time" id="curTime">0:00</span>
+            <input type="range" id="seek" min="0" max="100" value="0" step="0.1">
+            <span class="time" id="durTime">0:00</span>
           </div>
 
           <div class="sub-controls">
@@ -145,13 +151,13 @@
           </div>
         </div>
 
-        <!-- SINGLE DOWNLOAD TRIGGER BUTTON -->
+        <!-- DOWNLOAD TRIGGER BUTTON -->
         <button class="btn-download-popup" id="openDlModal">⚡ DOWNLOAD AUDIO STAMPS</button>
       </div>
     </div>
   </div>
 
-  <!-- DOWNLOAD MODAL (Classic Ink Stamp Style) -->
+  <!-- DOWNLOAD MODAL -->
   <div class="modal-overlay" id="dlModal">
     <div class="modal-box">
       <h3 style="font-family:'Space Mono'; margin-bottom: 16px; border-bottom: 2px dashed var(--border-dark); padding-bottom: 8px;">SELECT INK STAMP</h3>
