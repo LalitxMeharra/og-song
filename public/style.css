@@ -23,7 +23,7 @@ body {
   font-family: 'Noto Serif JP', serif;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
-  padding-bottom: 140px; /* Space for bottom nav & mini player */
+  padding-bottom: 140px;
 }
 
 a, button, select, input { font-family: inherit; }
@@ -58,7 +58,7 @@ nav { display: flex; align-items: center; justify-content: space-between; paddin
 .section-title { font-size: 17px; font-weight: 900; color: var(--ink-black); }
 .horizontal-scroll { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 16px; scrollbar-width: none; }
 .horizontal-scroll::-webkit-scrollbar { display: none; }
-.grid-card { background: var(--cream-card); border: 2px solid var(--border-dark); box-shadow: 4px 4px 0px var(--border-dark); padding: 8px; min-width: 140px; text-align: center; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; }
+.grid-card { background: var(--cream-card); border: 2px solid var(--border-dark); box-shadow: 4px 4px 0px var(--border-dark); padding: 8px; min-width: 140px; max-width: 140px; text-align: center; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; }
 .grid-card:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0px var(--crimson); }
 .grid-card img { width: 120px; height: 120px; border: 2px solid var(--border-dark); object-fit: cover; background: #eae2d3; }
 .grid-title { font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700; margin-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink-black); }
@@ -82,7 +82,6 @@ nav { display: flex; align-items: center; justify-content: space-between; paddin
 .btn-page { background: var(--ink-black); color: var(--bg-paper); border: 2px solid var(--ink-black); font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700; padding: 8px 16px; cursor: pointer; }
 .btn-page:hover:not(:disabled) { background: var(--crimson); border-color: var(--crimson); transform: translateY(-2px); box-shadow: 3px 3px 0px var(--border-dark); }
 .btn-page:disabled { opacity: 0.4; cursor: not-allowed; }
-.page-indicator { font-family: 'Space Mono', monospace; font-weight: 700; font-size: 13px; color: var(--ink-dark); }
 
 /* BOTTOM NAV */
 .bottom-nav { position: fixed; bottom: 0; width: 100%; max-width: 680px; left: 50%; transform: translateX(-50%); background: var(--bg-paper); border-top: 3px solid var(--border-dark); display: flex; justify-content: space-around; padding: 12px 0 16px; z-index: 100; }
@@ -110,23 +109,24 @@ nav { display: flex; align-items: center; justify-content: space-between; paddin
 .disc-cover.playing img { animation-play-state: running; }
 @keyframes rotateDisc { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-.p-title { font-size: 21px; font-weight: 900; margin-bottom: 4px; text-align: left; }
-.p-artist { font-family: 'Space Mono', monospace; font-size: 13px; color: var(--crimson); font-weight: 700; margin-bottom: 2px; text-align: left; }
-.p-album { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--text-muted); margin-bottom: 22px; text-align: left; }
+.p-title { font-size: 21px; font-weight: 900; margin-bottom: 4px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.p-artist { font-family: 'Space Mono', monospace; font-size: 13px; color: var(--crimson); font-weight: 700; margin-bottom: 2px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.p-album { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--text-muted); margin-bottom: 22px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.action-btn { background: transparent; border: none; color: #a89a8c; font-size: 28px; cursor: pointer; transition: transform 0.15s; }
+/* FIX: Player Actions (Lib & Fav) */
+.action-btn { background: transparent; border: none; color: #a89a8c; font-size: 26px; cursor: pointer; transition: transform 0.15s, color 0.15s; }
 .action-btn:hover { transform: scale(1.1); }
 .action-btn.active { color: var(--crimson); }
 
-/* TRANSPORT CONTROLS */
+/* FIX: Transport Controls & Seekbar Overlap */
 .control-panel { background: var(--bg-paper); border: 2px solid var(--border-dark); padding: 14px 16px; margin-bottom: 24px; }
-.transport-row { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 12px; }
+.transport-row { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 16px; }
 .p-btn { background: transparent; border: 2px solid var(--border-dark); width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-family: 'Space Mono', monospace; font-weight: 700; font-size: 11.5px; box-shadow: 2px 2px 0px var(--border-dark); transition: transform 0.1s; }
 .p-btn:active { transform: translate(2px, 2px); box-shadow: 0px 0px 0px var(--border-dark); }
 .p-play { background: var(--ink-black); color: var(--bg-paper); width: 46px; height: 46px; font-size: 16px; }
 .p-play:hover { background: var(--crimson); border-color: var(--crimson); }
 
-.seek-wrap { display: flex; align-items: center; gap: 8px; }
+.seek-wrap { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
 .time { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--text-muted); width: 32px; }
 input[type=range] { -webkit-appearance: none; appearance: none; flex: 1; height: 6px; background: #d8cebe; border: 1px solid var(--border-dark); outline: none; cursor: pointer; }
 input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: var(--crimson); border: 2px solid var(--border-dark); }
@@ -136,7 +136,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px;
 .vol-box input[type=range] { width: 70px; }
 .speed-box select { font-family: 'Space Mono', monospace; font-size: 11px; padding: 3px 6px; border: 1px solid var(--border-dark); background: var(--cream-card); }
 
-/* DOWNLOAD BUTTON & MODAL POPUP */
+/* DOWNLOAD MODAL */
 .btn-download-popup { background: var(--bg-paper); border: 2px solid var(--border-dark); box-shadow: 4px 4px 0px var(--border-dark); padding: 14px; width: 100%; font-family: 'Space Mono', monospace; font-size: 13px; font-weight: 900; color: var(--ink-black); cursor: pointer; letter-spacing: 1px; transition: background 0.15s; }
 .btn-download-popup:hover { background: var(--crimson-soft); border-color: var(--crimson); }
 
