@@ -307,7 +307,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // 3. SEARCH
+    // 3. SEARCH
   if (!q) return res.status(400).json({ error: 'Missing search query' });
 
   try {
@@ -315,46 +315,38 @@ export default async function handler(req, res) {
     const response = await fetch(searchUrl, { headers });
     const data = await response.json();
 
-    const results = [];
-    const seenIds = new Set(); // Duplicates rokne ke liye
+    // Dono arrays ko uthao, agar undefined hain toh fallback mein khali array [] bana do
+    const rawTop = Array.isArray(data?.topquery?.data) ? data.topquery.data : [];
+    const rawSongs = Array.isArray(data?.songs?.data) ? data.songs.data : [];
+    
+    // Dono ko ek single flat list mein combine kar do
+    const combined = [...rawTop, ...rawSongs];
+    
+    // Duplicates hatane ke liye Map ka use (Map ek ID ko strictly ek hi baar store karta hai)
+    const resultsMap = new Map();
 
-    // Pehle topquery wale best match ko add karo (Agar wo gaana hai)
-    if (data?.topquery?.data) {
-      for (const item of data.topquery.data) {
-        if (item.type !== 'song') continue; // Sirf gaano ko lo
-        const itemPid = String(item.id || item.more_info?.song_pids || '').split(',')[0].trim();
-        if (!itemPid || seenIds.has(itemPid)) continue;
-        
-        seenIds.add(itemPid);
-        results.push({
-          id: itemPid,
-          pid: itemPid,
-          title: cleanText(item.title),
-          artist: cleanText(item.more_info?.primary_artists || item.description || 'Unknown'),
-          album: cleanText(item.album || 'Single'),
-          image: String(item.image || '').replace('50x50', '500x500')
-        });
-      }
+    for (const item of combined) {
+      // Check karo ki object me strictly gaane ka hi data ho
+      const isSong = item.type === 'song' || (item.more_info && item.more_info.song_pids);
+      if (!isSong) continue;
+
+      const itemPid = String(item.id || item.more_info?.song_pids || '').split(',')[0].trim();
+      
+      // Agar PID nahi mili ya ID already Map mein add ho chuki hai, toh skip karo
+      if (!itemPid || resultsMap.has(itemPid)) continue;
+
+      resultsMap.set(itemPid, {
+        id: itemPid,
+        pid: itemPid,
+        title: cleanText(item.title),
+        artist: cleanText(item.more_info?.primary_artists || item.description || 'Unknown'),
+        album: cleanText(item.album || 'Single'),
+        image: String(item.image || '').replace('50x50', '500x500')
+      });
     }
 
-    // Uske baad baaki songs list ko add karo
-    if (data?.songs?.data) {
-      for (const item of data.songs.data) {
-        const itemPid = String(item.id || item.more_info?.song_pids || '').split(',')[0].trim();
-        if (!itemPid || seenIds.has(itemPid)) continue; // Duplicate ID bypass
-        
-        seenIds.add(itemPid);
-        results.push({
-          id: itemPid,
-          pid: itemPid,
-          title: cleanText(item.title),
-          artist: cleanText(item.more_info?.primary_artists || item.description || 'Unknown'),
-          album: cleanText(item.album || 'Single'),
-          image: String(item.image || '').replace('50x50', '500x500')
-        });
-      }
-    }
-    return res.status(200).json({ query: q, results });
+    // Map ki values ko array mein convert karke frontend ko bhej do
+    return res.status(200).json({ query: q, results: Array.from(resultsMap.values()) });
   } catch (error) {
     return res.status(502).json({ error: error.message });
   }
