@@ -316,10 +316,34 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     const results = [];
+    const seenIds = new Set(); // Duplicates rokne ke liye
+
+    // Pehle topquery wale best match ko add karo (Agar wo gaana hai)
+    if (data?.topquery?.data) {
+      for (const item of data.topquery.data) {
+        if (item.type !== 'song') continue; // Sirf gaano ko lo
+        const itemPid = String(item.id || item.more_info?.song_pids || '').split(',')[0].trim();
+        if (!itemPid || seenIds.has(itemPid)) continue;
+        
+        seenIds.add(itemPid);
+        results.push({
+          id: itemPid,
+          pid: itemPid,
+          title: cleanText(item.title),
+          artist: cleanText(item.more_info?.primary_artists || item.description || 'Unknown'),
+          album: cleanText(item.album || 'Single'),
+          image: String(item.image || '').replace('50x50', '500x500')
+        });
+      }
+    }
+
+    // Uske baad baaki songs list ko add karo
     if (data?.songs?.data) {
       for (const item of data.songs.data) {
         const itemPid = String(item.id || item.more_info?.song_pids || '').split(',')[0].trim();
-        if (!itemPid) continue;
+        if (!itemPid || seenIds.has(itemPid)) continue; // Duplicate ID bypass
+        
+        seenIds.add(itemPid);
         results.push({
           id: itemPid,
           pid: itemPid,
@@ -334,4 +358,4 @@ export default async function handler(req, res) {
   } catch (error) {
     return res.status(502).json({ error: error.message });
   }
-    }
+}
