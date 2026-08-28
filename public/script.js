@@ -106,14 +106,47 @@ async function loadHomeData() {
   } catch (err) { console.error(err); }
 }
 
-// COLLECTION VIEW ROUTING
+// 🚨 COLLECTION VIEW ROUTING (Artist API Integration + Premium UI) 🚨
 window.handleCardClick = async function(id, type, title, img) {
   if (type === 'song') {
     openTrack(id);
-  } else {
+  } else if (type === 'artist') {
+    // 1. Setup Header
     document.getElementById('colImg').src = img;
     document.getElementById('colTitle').textContent = title;
-    document.getElementById('colSubtitle').textContent = (type === 'artist' ? 'ARTIST RADAR' : 'ALBUM / PLAYLIST');
+    document.getElementById('colSubtitle').textContent = 'ARTIST RADAR';
+    document.getElementById('collectionList').innerHTML = `<div style="text-align:center; padding: 40px; font-family:'Space Mono'; color:var(--crimson);">Loading Top Hits...</div>`;
+    
+    // 2. Open Page
+    Router.navigate('collectionView');
+
+    // 3. Fetch from new Official Artist API
+    try {
+      const res = await fetch(`/api/artist?token=${encodeURIComponent(id)}&_t=${Date.now()}`);
+      const data = await res.json();
+      
+      if(data.topSongs && data.topSongs.length > 0) {
+        document.getElementById('collectionList').innerHTML = data.topSongs.map((r, index) => `
+          <div class="result-card" onclick="openTrack('${r.pid}')" style="border:none; border-bottom:1px dashed var(--grid-line); box-shadow:none; padding: 12px 4px; background: transparent; border-radius: 0;">
+            <div style="font-family:'Space Mono'; font-weight:900; font-size: 16px; color:var(--text-muted); width: 30px; text-align: center;">${index + 1}</div>
+            <div class="result-info" style="padding-left: 10px;">
+              <div class="result-title" style="font-size:15px; font-weight:700;">${r.title}</div>
+              <div class="result-meta" style="font-size:12px; color:#a89a8c; margin-top:2px;">${r.artist}</div>
+            </div>
+            <button class="action-btn" style="font-size:18px; color:var(--ink-black); margin-left: 10px;">▶</button>
+          </div>
+        `).join('');
+      } else {
+        document.getElementById('collectionList').innerHTML = `<div style="text-align:center; padding: 20px;">No tracks found for this artist.</div>`;
+      }
+    } catch(err) {
+      document.getElementById('collectionList').innerHTML = `<div style="text-align:center; padding: 20px; color:var(--crimson);">Error connecting to Artist API.</div>`;
+    }
+  } else {
+    // Standard Album/Playlist Fallback (Uses Search)
+    document.getElementById('colImg').src = img;
+    document.getElementById('colTitle').textContent = title;
+    document.getElementById('colSubtitle').textContent = 'ALBUM / PLAYLIST';
     document.getElementById('collectionList').innerHTML = `<div style="text-align:center; padding: 40px; font-family:'Space Mono'; color:var(--crimson);">Loading tracks...</div>`;
     
     Router.navigate('collectionView');
@@ -123,13 +156,13 @@ window.handleCardClick = async function(id, type, title, img) {
       const data = await res.json();
       if(data.results && data.results.length > 0) {
         document.getElementById('collectionList').innerHTML = data.results.map((r, index) => `
-          <div class="result-card" onclick="openTrack('${r.pid}')" style="border:none; border-bottom:1px dashed var(--grid-line); box-shadow:none; padding: 12px 4px; background: transparent;">
-            <div style="font-family:'Space Mono'; font-weight:bold; color:var(--text-muted); width: 24px;">${index + 1}</div>
-            <div class="result-info">
-              <div class="result-title" style="font-size:14px; font-weight:bold;">${r.title}</div>
-              <div class="result-meta" style="font-size:11px;">${r.artist}</div>
+          <div class="result-card" onclick="openTrack('${r.pid}')" style="border:none; border-bottom:1px dashed var(--grid-line); box-shadow:none; padding: 12px 4px; background: transparent; border-radius: 0;">
+            <div style="font-family:'Space Mono'; font-weight:900; font-size: 16px; color:var(--text-muted); width: 30px; text-align: center;">${index + 1}</div>
+            <div class="result-info" style="padding-left: 10px;">
+              <div class="result-title" style="font-size:15px; font-weight:700;">${r.title}</div>
+              <div class="result-meta" style="font-size:12px; color:#a89a8c; margin-top:2px;">${r.artist}</div>
             </div>
-            <button class="action-btn" style="font-size:16px; color:var(--ink-black);">▶</button>
+            <button class="action-btn" style="font-size:18px; color:var(--ink-black); margin-left: 10px;">▶</button>
           </div>
         `).join('');
       } else {
@@ -140,7 +173,6 @@ window.handleCardClick = async function(id, type, title, img) {
     }
   }
 };
-document.getElementById('collectionBackBtn').addEventListener('click', () => history.back());
 
 // LIVE SEARCH ENGINE
 const qInput = document.getElementById('q');
