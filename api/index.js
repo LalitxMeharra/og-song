@@ -168,33 +168,35 @@ export default async function handler(req, res) {
   };
 
   try {
-    // 1. HOME API (WITH ARTIST RADAR FIX)
+        // 1. HOME API (With Exact 20 Custom Premium Artists)
     if (action === 'home' || pathname.includes('/home')) {
       const homeUrl = `https://www.jiosaavn.com/api.php?__call=webapi.getLaunchData&api_version=4&_format=json&_marker=0&cc=in`;
       const response = await fetch(homeUrl, { headers });
       const rawData = await response.json();
 
-      let rawArtists = [];
-      
-      // Deep Search for Artist Recos
-      function getArtists(obj) {
-        if (!obj || typeof obj !== 'object') return null;
-        if (obj.artist_recos && Array.isArray(obj.artist_recos)) return obj.artist_recos;
-        if (obj.artist_recos && obj.artist_recos.data) return obj.artist_recos.data;
-        if (obj.key === 'artist_recos' && obj.data) return obj.data;
-        
-        for (const k in obj) {
-          const res = getArtists(obj[k]);
-          if (res) return res;
-        }
-        return null;
-      }
-      
-      rawArtists = getArtists(rawData);
-
-      if ((!rawArtists || rawArtists.length === 0) && Array.isArray(rawData.radio)) {
-        rawArtists = rawData.radio.filter(r => r.type === 'artist' || r.featured_station_type === 'artist' || r.more_info?.featured_station_type === 'artist');
-      }
+      // EXACT 20 ARTISTS FROM SOURCE
+      const customArtists = [
+        { id: "459320", title: "Arijit Singh", image: "https://c.saavncdn.com/artists/Arijit_Singh_004_20241118063717_500x500.jpg", type: "artist" },
+        { id: "8812560", title: "Dhanda Nyoliwala", image: "https://c.saavncdn.com/artists/Dhanda_Nyoliwala_000_20240820133551_500x500.jpg", type: "artist" },
+        { id: "497099", title: "Masoom Sharma", image: "https://c.saavncdn.com/artists/Masoom_Sharma_003_20250619064935_500x500.jpg", type: "artist" },
+        { id: "3319750", title: "Sidhu Moose Wala", image: "https://c.saavncdn.com/artists/Sidhu_Moose_Wala_004_20250617183705_500x500.jpg", type: "artist" },
+        { id: "697691", title: "Karan Aujla", image: "https://c.saavncdn.com/artists/Karan_Aujla_004_20260810121947_500x500.jpg", type: "artist" },
+        { id: "485956", title: "Yo Yo Honey Singh", image: "https://c.saavncdn.com/artists/Yo_Yo_Honey_Singh_004_20260811095253_500x500.jpg", type: "artist" },
+        { id: "468245", title: "Diljit Dosanjh", image: "https://c.saavncdn.com/artists/Diljit_Dosanjh_005_20231025073054_500x500.jpg", type: "artist" },
+        { id: "3436900", title: "Hansraj Raghuwanshi", image: "https://c.saavncdn.com/artists/Hansraj_Raghuwanshi_001_20220916054832_500x500.jpg", type: "artist" },
+        { id: "788130", title: "B Praak", image: "https://c.saavncdn.com/artists/B_Praak_001_20191118112005_500x500.jpg", type: "artist" },
+        { id: "455142", title: "Kumar Sanu", image: "https://c.saavncdn.com/artists/Kumar_Sanu_500x500.jpg", type: "artist" },
+        { id: "881158", title: "Jubin Nautiyal", image: "https://c.saavncdn.com/artists/Jubin_Nautiyal_003_20231130204020_500x500.jpg", type: "artist" },
+        { id: "455109", title: "Lata Mangeshkar", image: "https://c.saavncdn.com/artists/Lata_Mangeshkar_004_20230623105323_500x500.jpg", type: "artist" },
+        { id: "455120", title: "Alka Yagnik", image: "https://c.saavncdn.com/artists/Alka_Yagnik_002_20220314192930_500x500.jpg", type: "artist" },
+        { id: "455127", title: "Udit Narayan", image: "https://c.saavncdn.com/artists/Udit_Narayan_004_20241029065120_500x500.jpg", type: "artist" },
+        { id: "972663", title: "Amit Saini Rohtakiya", image: "https://c.saavncdn.com/artists/Amit_Saini_Rohtakiya_003_20260410063653_500x500.jpg", type: "artist" },
+        { id: "455144", title: "Kishore Kumar", image: "https://c.saavncdn.com/artists/Kishore_Kumar_500x500.jpg", type: "artist" },
+        { id: "455132", title: "Himesh Reshammiya", image: "https://c.saavncdn.com/artists/Himesh_Reshammiya_500x500.jpg", type: "artist" },
+        { id: "4474268", title: "Amanraj Gill", image: "https://c.saavncdn.com/artists/Amanraj_Gill_20191130140635_500x500.jpg", type: "artist" },
+        { id: "455130", title: "Shreya Ghoshal", image: "https://c.saavncdn.com/artists/Shreya_Ghoshal_007_20241101074144_500x500.jpg", type: "artist" },
+        { id: "4878402", title: "Anuv Jain", image: "https://c.saavncdn.com/artists/Anuv_Jain_001_20231206073013_500x500.jpg", type: "artist" }
+      ];
 
       const normalize = (arr) => (arr || []).map(item => ({
         id: item.id || item.perma_url || '',
@@ -206,9 +208,10 @@ export default async function handler(req, res) {
       return res.status(200).json({
         trending: normalize(rawData.new_trending),
         new_releases: normalize(rawData.new_albums),
-        artists: normalize(rawArtists)
+        artists: customArtists
       });
     }
+
 
     // 2. SEARCH API
     if (action === 'search' || pathname.includes('/search')) {
