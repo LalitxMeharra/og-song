@@ -224,18 +224,37 @@ export default async function handler(req, res) {
   };
 
   try {
-    // 1. HOME API (Trending, New Releases, Artists)
+        // 1. HOME API (Trending, New Releases, Artists)
     if (action === 'home' || pathname.includes('/home')) {
       const homeUrl = `https://www.jiosaavn.com/api.php?__call=webapi.getLaunchData&api_version=4&_format=json&_marker=0&cc=in`;
       const response = await fetch(homeUrl, { headers });
-      const data = await response.json();
+      const rawData = await response.json();
+
+      // Find the artist recommendations array regardless of where JioSaavn hides it
+      let rawArtists = [];
+      if (rawData.artist_recos) rawArtists = rawData.artist_recos.data || rawData.artist_recos;
+      else if (rawData.modules?.artist_recos?.data) rawArtists = rawData.modules.artist_recos.data;
+      else if (Array.isArray(rawData.radio)) rawArtists = rawData.radio.filter(r => r.type === 'artist' || r.featured_station_type === 'artist' || r.more_info?.featured_station_type === 'artist');
+      else if (Array.isArray(rawData)) {
+        const recoMod = rawData.find(m => m.key === 'artist_recos');
+        if (recoMod) rawArtists = recoMod.data;
+      }
+
+      // Normalizer function to fix object-titles and array-images
+      const normalize = (arr) => (arr || []).map(item => ({
+        id: item.id || item.perma_url || '',
+        title: item.title?.text || item.title || item.song || 'Unknown',
+        type: item.type || item.more_info?.featured_station_type || 'album',
+        image: (Array.isArray(item.image) ? item.image[0] : item.image || '').replace('50x50', '500x500').replace('150x150', '500x500')
+      }));
 
       return res.status(200).json({
-        trending: data.new_trending || [],
-        new_releases: data.new_albums || [],
-        artists: (data.radio || []).filter(r => r.featured_station_type === 'artist')
+        trending: normalize(rawData.new_trending),
+        new_releases: normalize(rawData.new_albums),
+        artists: normalize(rawArtists)
       });
     }
+
 
     // 2. SEARCH API (Max 20, No Unknown Artist)
     if (action === 'search' || pathname.includes('/search')) {
