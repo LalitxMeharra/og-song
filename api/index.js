@@ -168,22 +168,32 @@ export default async function handler(req, res) {
   };
 
   try {
-    // 1. HOME API
+        // 1. HOME API
     if (action === 'home' || pathname.includes('/home')) {
       const homeUrl = `https://www.jiosaavn.com/api.php?__call=webapi.getLaunchData&api_version=4&_format=json&_marker=0&cc=in`;
       const response = await fetch(homeUrl, { headers });
       const rawData = await response.json();
 
       let rawArtists = [];
-      if (rawData.artist_recos && Array.isArray(rawData.artist_recos)) {
-        rawArtists = rawData.artist_recos;
-      } else if (rawData.artist_recos && Array.isArray(rawData.artist_recos.data)) {
-        rawArtists = rawData.artist_recos.data;
-      } else if (Array.isArray(rawData)) {
-        const recoMod = rawData.find(m => m.key === 'artist_recos');
-        if (recoMod && Array.isArray(recoMod.data)) rawArtists = recoMod.data;
+      
+      // DEEP SEARCH: JioSaavn hides 'artist_recos' in different places. This finds it anywhere.
+      function getArtists(obj) {
+        if (!obj || typeof obj !== 'object') return null;
+        if (obj.artist_recos && Array.isArray(obj.artist_recos)) return obj.artist_recos;
+        if (obj.artist_recos && obj.artist_recos.data) return obj.artist_recos.data;
+        if (obj.key === 'artist_recos' && obj.data) return obj.data;
+        
+        for (const k in obj) {
+          const res = getArtists(obj[k]);
+          if (res) return res;
+        }
+        return null;
       }
-      if (rawArtists.length === 0 && Array.isArray(rawData.radio)) {
+      
+      rawArtists = getArtists(rawData);
+
+      // Fallback only if absolutely empty
+      if ((!rawArtists || rawArtists.length === 0) && Array.isArray(rawData.radio)) {
         rawArtists = rawData.radio.filter(r => r.type === 'artist' || r.featured_station_type === 'artist' || r.more_info?.featured_station_type === 'artist');
       }
 
@@ -193,6 +203,14 @@ export default async function handler(req, res) {
         type: item.type || item.more_info?.featured_station_type || 'album',
         image: (Array.isArray(item.image) ? item.image[0] : item.image || '').replace('50x50', '500x500').replace('150x150', '500x500')
       }));
+
+      return res.status(200).json({
+        trending: normalize(rawData.new_trending),
+        new_releases: normalize(rawData.new_albums),
+        artists: normalize(rawArtists)
+      });
+    }
+
 
       return res.status(200).json({
         trending: normalize(rawData.new_trending),
