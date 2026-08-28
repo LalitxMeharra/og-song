@@ -167,8 +167,7 @@ export default async function handler(req, res) {
     'X-Real-IP': '103.15.255.255'
   };
 
-  try {
-        // 1. HOME API
+      // 1. HOME API
     if (action === 'home' || pathname.includes('/home')) {
       const homeUrl = `https://www.jiosaavn.com/api.php?__call=webapi.getLaunchData&api_version=4&_format=json&_marker=0&cc=in`;
       const response = await fetch(homeUrl, { headers });
@@ -203,6 +202,13 @@ export default async function handler(req, res) {
         type: item.type || item.more_info?.featured_station_type || 'album',
         image: (Array.isArray(item.image) ? item.image[0] : item.image || '').replace('50x50', '500x500').replace('150x150', '500x500')
       }));
+
+      return res.status(200).json({
+        trending: normalize(rawData.new_trending),
+        new_releases: normalize(rawData.new_albums),
+        artists: normalize(rawArtists)
+      });
+    }
 
       return res.status(200).json({
         trending: normalize(rawData.new_trending),
