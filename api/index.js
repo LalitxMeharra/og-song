@@ -41,59 +41,16 @@ function desDecipher(encryptedBytes, keyBytes) {
     24, 25, 26, 27, 28, 29, 28, 29, 30, 31, 32, 1
   ];
   const S_BOXES = [
-    [
-      [14, 4, 13, 1, 2, 15, 11, 8, 3, 10, 6, 12, 5, 9, 0, 7],
-      [0, 15, 7, 4, 14, 2, 13, 1, 10, 6, 12, 11, 9, 5, 3, 8],
-      [4, 1, 14, 8, 13, 6, 2, 11, 15, 12, 9, 7, 3, 10, 5, 0],
-      [15, 12, 8, 2, 4, 9, 1, 7, 5, 11, 3, 14, 10, 0, 6, 13]
-    ],
-    [
-      [15, 1, 8, 14, 6, 11, 3, 4, 9, 7, 2, 13, 12, 0, 5, 10],
-      [3, 13, 4, 7, 15, 2, 8, 14, 12, 0, 1, 10, 6, 9, 11, 5],
-      [0, 14, 7, 11, 10, 4, 13, 1, 5, 8, 12, 6, 9, 3, 2, 15],
-      [13, 8, 10, 1, 3, 15, 4, 2, 11, 6, 7, 12, 0, 5, 14, 9]
-    ],
-    [
-      [10, 0, 9, 14, 6, 3, 15, 5, 1, 13, 12, 7, 11, 4, 2, 8],
-      [13, 7, 0, 9, 3, 4, 6, 10, 2, 8, 5, 14, 12, 11, 15, 1],
-      [13, 6, 4, 9, 8, 15, 3, 0, 11, 1, 2, 12, 5, 10, 14, 7],
-      [1, 10, 13, 0, 6, 9, 8, 7, 4, 15, 14, 3, 11, 5, 2, 12]
-    ],
-    [
-      [7, 13, 14, 3, 0, 6, 9, 10, 1, 2, 8, 5, 11, 12, 4, 15],
-      [13, 8, 11, 5, 6, 15, 0, 3, 4, 7, 2, 12, 1, 10, 14, 9],
-      [10, 6, 9, 0, 12, 11, 7, 13, 15, 1, 3, 14, 5, 2, 8, 4],
-      [3, 15, 0, 6, 10, 1, 13, 8, 9, 4, 5, 11, 12, 7, 2, 14]
-    ],
-    [
-      [2, 12, 4, 1, 7, 10, 11, 6, 8, 5, 3, 15, 13, 0, 14, 9],
-      [14, 11, 2, 12, 4, 7, 13, 1, 5, 0, 15, 10, 3, 9, 8, 6],
-      [4, 2, 1, 11, 10, 13, 7, 8, 15, 9, 12, 5, 6, 3, 0, 14],
-      [11, 8, 12, 7, 1, 14, 2, 13, 6, 15, 0, 9, 10, 4, 5, 3]
-    ],
-    [
-      [12, 1, 10, 15, 9, 2, 6, 8, 0, 13, 3, 4, 14, 7, 5, 11],
-      [10, 15, 4, 2, 7, 12, 9, 5, 6, 1, 13, 14, 0, 11, 3, 8],
-      [9, 14, 15, 5, 2, 8, 12, 3, 7, 0, 4, 10, 1, 13, 11, 6],
-      [4, 3, 2, 12, 9, 5, 15, 10, 11, 14, 1, 7, 6, 0, 8, 13]
-    ],
-    [
-      [4, 11, 2, 14, 15, 0, 8, 13, 3, 12, 9, 7, 5, 10, 6, 1],
-      [13, 0, 11, 7, 4, 9, 1, 10, 14, 3, 5, 12, 2, 15, 8, 6],
-      [1, 4, 11, 13, 12, 3, 7, 14, 10, 15, 6, 8, 0, 5, 9, 2],
-      [6, 11, 13, 8, 1, 4, 10, 7, 9, 5, 0, 15, 14, 2, 3, 12]
-    ],
-    [
-      [13, 2, 8, 4, 6, 15, 11, 1, 10, 9, 3, 14, 5, 0, 12, 7],
-      [1, 15, 13, 8, 10, 3, 7, 4, 12, 5, 6, 11, 0, 14, 9, 2],
-      [7, 11, 4, 1, 9, 12, 14, 2, 0, 6, 10, 13, 15, 3, 5, 8],
-      [2, 1, 14, 7, 4, 10, 8, 13, 15, 12, 9, 0, 3, 5, 6, 11]
-    ]
+    [[14, 4, 13, 1, 2, 15, 11, 8, 3, 10, 6, 12, 5, 9, 0, 7],[0, 15, 7, 4, 14, 2, 13, 1, 10, 6, 12, 11, 9, 5, 3, 8],[4, 1, 14, 8, 13, 6, 2, 11, 15, 12, 9, 7, 3, 10, 5, 0],[15, 12, 8, 2, 4, 9, 1, 7, 5, 11, 3, 14, 10, 0, 6, 13]],
+    [[15, 1, 8, 14, 6, 11, 3, 4, 9, 7, 2, 13, 12, 0, 5, 10],[3, 13, 4, 7, 15, 2, 8, 14, 12, 0, 1, 10, 6, 9, 11, 5],[0, 14, 7, 11, 10, 4, 13, 1, 5, 8, 12, 6, 9, 3, 2, 15],[13, 8, 10, 1, 3, 15, 4, 2, 11, 6, 7, 12, 0, 5, 14, 9]],
+    [[10, 0, 9, 14, 6, 3, 15, 5, 1, 13, 12, 7, 11, 4, 2, 8],[13, 7, 0, 9, 3, 4, 6, 10, 2, 8, 5, 14, 12, 11, 15, 1],[13, 6, 4, 9, 8, 15, 3, 0, 11, 1, 2, 12, 5, 10, 14, 7],[1, 10, 13, 0, 6, 9, 8, 7, 4, 15, 14, 3, 11, 5, 2, 12]],
+    [[7, 13, 14, 3, 0, 6, 9, 10, 1, 2, 8, 5, 11, 12, 4, 15],[13, 8, 11, 5, 6, 15, 0, 3, 4, 7, 2, 12, 1, 10, 14, 9],[10, 6, 9, 0, 12, 11, 7, 13, 15, 1, 3, 14, 5, 2, 8, 4],[3, 15, 0, 6, 10, 1, 13, 8, 9, 4, 5, 11, 12, 7, 2, 14]],
+    [[2, 12, 4, 1, 7, 10, 11, 6, 8, 5, 3, 15, 13, 0, 14, 9],[14, 11, 2, 12, 4, 7, 13, 1, 5, 0, 15, 10, 3, 9, 8, 6],[4, 2, 1, 11, 10, 13, 7, 8, 15, 9, 12, 5, 6, 3, 0, 14],[11, 8, 12, 7, 1, 14, 2, 13, 6, 15, 0, 9, 10, 4, 5, 3]],
+    [[12, 1, 10, 15, 9, 2, 6, 8, 0, 13, 3, 4, 14, 7, 5, 11],[10, 15, 4, 2, 7, 12, 9, 5, 6, 1, 13, 14, 0, 11, 3, 8],[9, 14, 15, 5, 2, 8, 12, 3, 7, 0, 4, 10, 1, 13, 11, 6],[4, 3, 2, 12, 9, 5, 15, 10, 11, 14, 1, 7, 6, 0, 8, 13]],
+    [[4, 11, 2, 14, 15, 0, 8, 13, 3, 12, 9, 7, 5, 10, 6, 1],[13, 0, 11, 7, 4, 9, 1, 10, 14, 3, 5, 12, 2, 15, 8, 6],[1, 4, 11, 13, 12, 3, 7, 14, 10, 15, 6, 8, 0, 5, 9, 2],[6, 11, 13, 8, 1, 4, 10, 7, 9, 5, 0, 15, 14, 2, 3, 12]],
+    [[13, 2, 8, 4, 6, 15, 11, 1, 10, 9, 3, 14, 5, 0, 12, 7],[1, 15, 13, 8, 10, 3, 7, 4, 12, 5, 6, 11, 0, 14, 9, 2],[7, 11, 4, 1, 9, 12, 14, 2, 0, 6, 10, 13, 15, 3, 5, 8],[2, 1, 14, 7, 4, 10, 8, 13, 15, 12, 9, 0, 3, 5, 6, 11]]
   ];
-  const P = [
-    16, 7, 20, 21, 29, 12, 28, 17, 1, 15, 23, 26, 5, 18, 31, 10,
-    2, 8, 24, 14, 32, 27, 3, 9, 19, 13, 30, 6, 22, 11, 4, 25
-  ];
+  const P = [16, 7, 20, 21, 29, 12, 28, 17, 1, 15, 23, 26, 5, 18, 31, 10, 2, 8, 24, 14, 32, 27, 3, 9, 19, 13, 30, 6, 22, 11, 4, 25];
 
   function bytesToBits(bytes) {
     const bits = [];
@@ -113,9 +70,7 @@ function desDecipher(encryptedBytes, keyBytes) {
     return bytes;
   }
 
-  function permute(bits, table) {
-    return table.map(pos => bits[pos - 1]);
-  }
+  function permute(bits, table) { return table.map(pos => bits[pos - 1]); }
 
   const keyBits = bytesToBits(keyBytes);
   const pc1Bits = permute(keyBits, PC1);
@@ -154,21 +109,14 @@ function desDecipher(encryptedBytes, keyBytes) {
       L = R;
       R = newR;
     }
-
     const finalBits = permute(R.concat(L), FP);
     outBytes.push(...bitsToBytes(finalBits));
   }
-
   return Buffer.from(outBytes);
 }
 
 function cleanText(value = '') {
-  return String(value || '')
-    .replace(/<[^>]*>/g, '')
-    .replace(/&quot;/g, '"')
-    .replace(/&#039;/g, "'")
-    .replace(/&amp;/g, '&')
-    .trim();
+  return String(value || '').replace(/<[^>]*>/g, '').replace(/&quot;/g, '"').replace(/&#039;/g, "'").replace(/&amp;/g, '&').trim();
 }
 
 function decryptUrl(encryptedUrl) {
@@ -180,18 +128,14 @@ function decryptUrl(encryptedUrl) {
 
     let encryptedBytes = Buffer.from(cleaned, 'base64');
     const remainder = encryptedBytes.length % 8;
-    if (remainder !== 0) {
-      encryptedBytes = encryptedBytes.subarray(0, encryptedBytes.length - remainder);
-    }
+    if (remainder !== 0) encryptedBytes = encryptedBytes.subarray(0, encryptedBytes.length - remainder);
 
     const keyBytes = Buffer.from(DES_KEY_STRING, 'utf-8');
     const decrypted = desDecipher(encryptedBytes, keyBytes);
 
     const padLen = decrypted[decrypted.length - 1];
     let finalBytes = decrypted;
-    if (padLen >= 1 && padLen <= 8) {
-      finalBytes = decrypted.subarray(0, decrypted.length - padLen);
-    }
+    if (padLen >= 1 && padLen <= 8) finalBytes = decrypted.subarray(0, decrypted.length - padLen);
 
     const finalUrl = finalBytes.toString('utf-8').trim();
     return finalUrl.startsWith('http') ? finalUrl : null;
@@ -224,23 +168,25 @@ export default async function handler(req, res) {
   };
 
   try {
-        // 1. HOME API (Trending, New Releases, Artists)
+    // 1. HOME API
     if (action === 'home' || pathname.includes('/home')) {
       const homeUrl = `https://www.jiosaavn.com/api.php?__call=webapi.getLaunchData&api_version=4&_format=json&_marker=0&cc=in`;
       const response = await fetch(homeUrl, { headers });
       const rawData = await response.json();
 
-      // Find the artist recommendations array regardless of where JioSaavn hides it
       let rawArtists = [];
-      if (rawData.artist_recos) rawArtists = rawData.artist_recos.data || rawData.artist_recos;
-      else if (rawData.modules?.artist_recos?.data) rawArtists = rawData.modules.artist_recos.data;
-      else if (Array.isArray(rawData.radio)) rawArtists = rawData.radio.filter(r => r.type === 'artist' || r.featured_station_type === 'artist' || r.more_info?.featured_station_type === 'artist');
-      else if (Array.isArray(rawData)) {
+      if (rawData.artist_recos && Array.isArray(rawData.artist_recos)) {
+        rawArtists = rawData.artist_recos;
+      } else if (rawData.artist_recos && Array.isArray(rawData.artist_recos.data)) {
+        rawArtists = rawData.artist_recos.data;
+      } else if (Array.isArray(rawData)) {
         const recoMod = rawData.find(m => m.key === 'artist_recos');
-        if (recoMod) rawArtists = recoMod.data;
+        if (recoMod && Array.isArray(recoMod.data)) rawArtists = recoMod.data;
+      }
+      if (rawArtists.length === 0 && Array.isArray(rawData.radio)) {
+        rawArtists = rawData.radio.filter(r => r.type === 'artist' || r.featured_station_type === 'artist' || r.more_info?.featured_station_type === 'artist');
       }
 
-      // Normalizer function to fix object-titles and array-images
       const normalize = (arr) => (arr || []).map(item => ({
         id: item.id || item.perma_url || '',
         title: item.title?.text || item.title || item.song || 'Unknown',
@@ -255,8 +201,7 @@ export default async function handler(req, res) {
       });
     }
 
-
-    // 2. SEARCH API (Max 20, No Unknown Artist)
+    // 2. SEARCH API
     if (action === 'search' || pathname.includes('/search')) {
       if (!q) return res.status(400).json({ error: 'Missing query' });
       const searchUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&q=${encodeURIComponent(q)}&n=25&p=1&_format=json&_marker=0&cc=in`;
@@ -283,7 +228,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ results: Array.from(resultsMap.values()) });
     }
 
-    // 3. DETAILS API (Decryption)
+    // 3. DETAILS API
     if (action === 'details' || pathname.includes('/details') || (pid && !q)) {
       const targetPid = String(pid || '').split(',')[0].trim();
       const response = await fetch(`https://www.jiosaavn.com/api.php?__call=song.getDetails&cc=in&_marker=0&_format=json&pids=${encodeURIComponent(targetPid)}`, { headers });
