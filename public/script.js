@@ -1,10 +1,9 @@
 let currentSongData = null;
 let searchTimer = null;
 
-// --- SMART HISTORY ROUTER (Step by Step Back + Exit Trap) ---
+// SMART HISTORY ROUTER (Step by Step Back + Exit Trap)
 const Router = {
   init() {
-    // 🚨 Push TRAP state first, then HOME state to make exit popup work 🚨
     history.replaceState({ step: 'trap' }, '');
     history.pushState({ step: 'home', view: 'homeView' }, '');
     window.addEventListener('popstate', this.handleBack.bind(this));
@@ -37,9 +36,7 @@ const Router = {
       this.switchUI(e.state.view);
     } 
     else if (e.state && e.state.step === 'trap') {
-      // TRAP TRIGGERED -> Show Exit Modal
       document.getElementById('exitModal').style.display = 'flex';
-      // Re-push home state so they don't actually exit
       history.pushState({ step: 'home', view: 'homeView' }, '');
     }
   }
@@ -66,7 +63,6 @@ function fmtTime(s) {
   return Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
 }
 
-// BOTTOM NAV CLICKS
 document.querySelectorAll('.nav-item').forEach(item => {
   item.addEventListener('click', () => {
     const targetId = item.dataset.target;
@@ -77,24 +73,23 @@ document.querySelectorAll('.nav-item').forEach(item => {
   });
 });
 
-// EXIT MODAL ACTIONS
 document.getElementById('btnExitNo').addEventListener('click', () => {
   document.getElementById('exitModal').style.display = 'none';
 });
 document.getElementById('btnExitYes').addEventListener('click', () => {
   document.getElementById('exitModal').style.display = 'none';
-  window.history.go(-2); // Escapes the trap entirely
+  window.history.go(-2); 
 });
 
-// --- 01. JS: HOME DATA REPLACEMENT --- //
 async function loadHomeData() {
   try {
     const res = await fetch('/api/home');
     const data = await res.json();
-    
     const buildCards = (arr) => (arr || []).map(i => {
-      const safeTitle = escapeHtml(i.title).replace(/'/g, "\\'");
-      return `<div class="grid-card" onclick="handleCardClick('${i.id}', '${i.type}', '${safeTitle}', '${escapeHtml(i.image)}')"><img src="${escapeHtml(i.image)}" loading="lazy"><div class="grid-title">${escapeHtml(i.title)}</div></div>`;
+      const type = i.type || (i.more_info && i.more_info.featured_station_type) || 'album';
+      const title = escapeHtml(i.title || i.song || i.more_info?.station_display_text || i.more_info?.query || 'Unknown');
+      const img = escapeHtml((i.image || '').replace('150x150', '500x500'));
+      return `<div class="grid-card" onclick="handleCardClick('${i.id}', '${type}', '${title.replace(/'/g, "\\'")}', '${img}')"><img src="${img}" loading="lazy"><div class="grid-title">${title}</div></div>`;
     }).join('');
 
     document.getElementById('trendingGrid').innerHTML = buildCards(data.trending);
@@ -102,35 +97,27 @@ async function loadHomeData() {
     
     const artistGrid = document.getElementById('artistsGrid');
     artistGrid.innerHTML = buildCards(data.artists);
-    
     if (!data.artists || data.artists.length === 0) {
       artistGrid.innerHTML = `<div style="padding:10px; font-family:'Space Mono'; font-size:12px; color:var(--text-muted);">Radar recalibrating... No artists found right now.</div>`;
     }
-  } catch (err) { 
-    console.error("Home load failed", err); 
-  }
+  } catch (err) { console.error(err); }
 }
 
-
-// 🚨 COLLECTION VIEW (Clean Playlist UI like JioSaavn) 🚨
 window.handleCardClick = async function(id, type, title, img) {
   if (type === 'song') {
     openTrack(id);
   } else {
-    // Setup Header
     document.getElementById('colImg').src = img;
     document.getElementById('colTitle').textContent = title;
     document.getElementById('colSubtitle').textContent = (type === 'artist' ? 'ARTIST RADAR' : 'ALBUM / PLAYLIST');
     document.getElementById('collectionList').innerHTML = `<div style="text-align:center; padding: 40px; font-family:'Space Mono'; color:var(--crimson);">Loading tracks...</div>`;
     
-    // Navigate to Collection
     Router.navigate('collectionView');
 
     try {
       const res = await fetch(`/api/search?q=${encodeURIComponent(title)}&_t=${Date.now()}`);
       const data = await res.json();
       if(data.results && data.results.length > 0) {
-        // Render as a JioSaavn style playlist
         document.getElementById('collectionList').innerHTML = data.results.map((r, index) => `
           <div class="result-card" onclick="openTrack('${r.pid}')" style="border:none; border-bottom:1px dashed var(--grid-line); box-shadow:none; padding: 12px 4px; background: transparent;">
             <div style="font-family:'Space Mono'; font-weight:bold; color:var(--text-muted); width: 24px;">${index + 1}</div>
@@ -151,8 +138,6 @@ window.handleCardClick = async function(id, type, title, img) {
 };
 document.getElementById('collectionBackBtn').addEventListener('click', () => history.back());
 
-
-// 🚨 LIVE SEARCH ENGINE (Letter by Letter) 🚨
 const qInput = document.getElementById('q');
 const searchSpinner = document.getElementById('searchSpinner');
 
@@ -168,7 +153,7 @@ qInput.addEventListener('input', (e) => {
   }
 
   searchSpinner.style.display = 'block';
-  searchTimer = setTimeout(() => executeLiveSearch(query), 500); // 500ms typing delay
+  searchTimer = setTimeout(() => executeLiveSearch(query), 500); 
 });
 
 async function executeLiveSearch(query) {
@@ -210,7 +195,6 @@ async function executeLiveSearch(query) {
   }
 }
 
-// OPEN TRACK
 const audio = document.getElementById('audio');
 async function openTrack(pid) {
   showToast('Decrypting HQ Stream...');
@@ -251,15 +235,22 @@ async function openTrack(pid) {
 }
 
 document.getElementById('closePlayerBtn').addEventListener('click', () => history.back());
-document.getElementById('miniPlayer').addEventListener('click', function(e) {
-  // Agar click Play/Pause button par hua hai, toh player open mat karo (play hone do)
-  if(e.target.closest('#mpPlayBtn')) return; 
-  Router.navigate('fullPlayer', true);
-});
 
-function togglePlay() { if (audio.paused && audio.src) { audio.play(); setPlayState(true); } else { audio.pause(); setPlayState(false); } }
-document.getElementById('playBtn').addEventListener('click', togglePlay);
-document.getElementById('mpPlayBtn').addEventListener('click', togglePlay);
+// 🚨 MINI PLAYER CLICK FIX 🚨
+document.getElementById('miniPlayer').onclick = function() {
+  Router.navigate('fullPlayer', true);
+};
+document.getElementById('mpPlayBtn').onclick = function(e) {
+  e.stopPropagation(); // Prevents the bar underneath from firing
+  togglePlay();
+};
+document.getElementById('playBtn').onclick = function() {
+  togglePlay();
+};
+
+function togglePlay() { 
+  if (audio.paused && audio.src) { audio.play(); setPlayState(true); } else { audio.pause(); setPlayState(false); } 
+}
 
 function setPlayState(isPlaying) {
   document.getElementById('playBtn').textContent = isPlaying ? '❚❚' : '▶';
