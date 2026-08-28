@@ -183,34 +183,51 @@ export default async function handler(req, res) {
       return res.status(200).json({ results: Array.from(resultsMap.values()) });
     }
 
-    // --- 3. ARTIST TOP SONGS API ---
+        // --- 3. ARTIST TOP SONGS API ---
     if (action === 'artist' || pathname.includes('/artist')) {
       const token = req.query.token || urlObj.searchParams.get('token');
       if (!token) return res.status(400).json({ error: 'Missing artist token' });
 
-      const artistUrl = `https://www.jiosaavn.com/api.php?__call=webapi.get&token=${encodeURIComponent(token)}&type=artist&p=0&n_song=20&n_album=0&sub_type=&category=&sort_order=&includeMetaTags=0&api_version=4&_format=json&_marker=0`;
+      // Exact JioSaavn Official API url with ctx=wap6dot0 & 50 songs limit
+      const artistUrl = `https://www.jiosaavn.com/api.php?__call=webapi.get&token=${encodeURIComponent(token)}&type=artist&p=0&n_song=50&n_album=50&sub_type=&category=&sort_order=&includeMetaTags=0&ctx=wap6dot0&api_version=4&_format=json&_marker=0`;
       const data = await safeFetchJSON(artistUrl, { headers });
 
-      if (!data || !data.topSongs) return res.status(404).json({ error: 'Artist details not found' });
+      // 🚨 Robust Array Extractor (Fixes data.topSongs.map is not a function error) 🚨
+      let rawSongs = [];
+      if (data.topSongs) {
+        if (Array.isArray(data.topSongs)) rawSongs = data.topSongs;
+        else if (Array.isArray(data.topSongs.data)) rawSongs = data.topSongs.data;
+        else if (Array.isArray(data.topSongs.songs)) rawSongs = data.topSongs.songs;
+        else if (typeof data.topSongs === 'object') rawSongs = Object.values(data.topSongs); // If it's a dictionary
+      } else if (Array.isArray(data.songs)) {
+        rawSongs = data.songs;
+      }
 
-      const topSongs = data.topSongs.map(song => {
-        let artistName = song.subtitle || 'Unknown Artist';
-        if (artistName.includes(' - ')) artistName = artistName.split(' - ')[0];
+      if (!rawSongs || rawSongs.length === 0) {
+        return res.status(404).json({ error: 'No songs found for this artist' });
+      }
+
+      const topSongs = rawSongs.map(song => {
+        let artistName = song.subtitle || song.singers || 'Unknown Artist';
+        if (artistName.includes(' - ')) artistName = artistName.split(' - ')[0]; // Clean up subtitle
+        
         return {
-          pid: song.id,
-          title: cleanText(song.title),
+          pid: String(song.id || song.perma_url || '').split(',')[0].trim(),
+          title: cleanText(song.title || song.song),
           artist: cleanText(artistName),
-          image: String(song.image || '').replace('150x150', '500x500')
+          image: String(song.image || '').replace('50x50', '500x500').replace('150x150', '500x500')
         };
       });
 
       return res.status(200).json({
-        name: data.name,
-        image: String(data.image || '').replace('150x150', '500x500'),
-        subtitle: data.subtitle,
+        name: data.name || data.title,
+        image: String(data.image || '').replace('50x50', '500x500').replace('150x150', '500x500'),
+        subtitle: data.subtitle || 'Artist',
         topSongs: topSongs
       });
     }
+
+
 
     // --- 4. DETAILS API ---
     if (action === 'details' || pathname.includes('/details') || (pid && !q)) {
