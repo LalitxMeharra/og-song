@@ -274,7 +274,8 @@ export default async function handler(req, res) {
           '96': `${basePrefix}_96.${ext}`
         }
       });
-    }
+        }
+    
 
     // 4. DOWNLOAD PROXY
     if (pathname.includes('/download') || action === 'download') {
@@ -298,3 +299,35 @@ export default async function handler(req, res) {
     return res.status(502).json({ error: error.message });
   }
 }
+    // 5. ARTIST TOP SONGS API
+    if (action === 'artist' || pathname.includes('/artist')) {
+      const token = req.query.token || urlObj.searchParams.get('token');
+      if (!token) return res.status(400).json({ error: 'Missing artist token' });
+
+      // JioSaavn Web API fetch (Using exact format you provided)
+      const artistUrl = `https://www.jiosaavn.com/api.php?__call=webapi.get&token=${encodeURIComponent(token)}&type=artist&p=0&n_song=20&n_album=0&sub_type=&category=&sort_order=&includeMetaTags=0&api_version=4&_format=json&_marker=0`;
+      
+      const response = await fetch(artistUrl, { headers });
+      const data = await response.json();
+
+      if (!data || !data.topSongs) return res.status(404).json({ error: 'Artist details not found' });
+
+      const topSongs = data.topSongs.map(song => {
+        let artistName = song.subtitle || 'Unknown Artist';
+        if (artistName.includes(' - ')) artistName = artistName.split(' - ')[0]; // Clean up subtitle
+
+        return {
+          pid: song.id,
+          title: cleanText(song.title),
+          artist: cleanText(artistName),
+          image: String(song.image || '').replace('150x150', '500x500')
+        };
+      });
+
+      return res.status(200).json({
+        name: data.name,
+        image: String(data.image || '').replace('150x150', '500x500'),
+        subtitle: data.subtitle,
+        topSongs: topSongs
+      });
+    }
