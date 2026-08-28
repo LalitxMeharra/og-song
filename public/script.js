@@ -86,23 +86,31 @@ document.getElementById('btnExitYes').addEventListener('click', () => {
   window.history.go(-2); // Escapes the trap entirely
 });
 
-// HOME DATA
+// --- 01. JS: HOME DATA REPLACEMENT --- //
 async function loadHomeData() {
   try {
     const res = await fetch('/api/home');
     const data = await res.json();
+    
     const buildCards = (arr) => (arr || []).map(i => {
-      const type = i.type || (i.more_info && i.more_info.featured_station_type) || 'album';
-      const title = escapeHtml(i.title || i.song || i.more_info?.station_display_text || i.more_info?.query || 'Unknown');
-      const img = escapeHtml((i.image || '').replace('150x150', '500x500'));
-      return `<div class="grid-card" onclick="handleCardClick('${i.id}', '${type}', '${title.replace(/'/g, "\\'")}', '${img}')"><img src="${img}" loading="lazy"><div class="grid-title">${title}</div></div>`;
+      const safeTitle = escapeHtml(i.title).replace(/'/g, "\\'");
+      return `<div class="grid-card" onclick="handleCardClick('${i.id}', '${i.type}', '${safeTitle}', '${escapeHtml(i.image)}')"><img src="${escapeHtml(i.image)}" loading="lazy"><div class="grid-title">${escapeHtml(i.title)}</div></div>`;
     }).join('');
 
     document.getElementById('trendingGrid').innerHTML = buildCards(data.trending);
     document.getElementById('newReleasesGrid').innerHTML = buildCards(data.new_releases);
-    document.getElementById('artistsGrid').innerHTML = buildCards(data.artists);
-  } catch (err) { console.error(err); }
+    
+    const artistGrid = document.getElementById('artistsGrid');
+    artistGrid.innerHTML = buildCards(data.artists);
+    
+    if (!data.artists || data.artists.length === 0) {
+      artistGrid.innerHTML = `<div style="padding:10px; font-family:'Space Mono'; font-size:12px; color:var(--text-muted);">Radar recalibrating... No artists found right now.</div>`;
+    }
+  } catch (err) { 
+    console.error("Home load failed", err); 
+  }
 }
+
 
 // 🚨 COLLECTION VIEW (Clean Playlist UI like JioSaavn) 🚨
 window.handleCardClick = async function(id, type, title, img) {
