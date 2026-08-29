@@ -86,7 +86,10 @@ async function safeFetchJSON(url, options) {
     return JSON.parse(text);
   } catch(e) {
     const jsonStart = text.indexOf('{');
-    if(jsonStart > -1) return JSON.parse(text.slice(jsonStart));
+    const arrayStart = text.indexOf('[');
+    let start = jsonStart;
+    if (arrayStart > -1 && (jsonStart === -1 || arrayStart < jsonStart)) start = arrayStart;
+    if (start > -1) return JSON.parse(text.slice(start));
     throw new Error('Invalid JSON');
   }
 }
@@ -102,10 +105,12 @@ export default async function handler(req, res) {
   const pid = req.query.pid || urlObj.searchParams.get('pid') || '';
   const action = req.query.action || urlObj.searchParams.get('action') || pathname.split('/').pop();
 
+  // Smart Headers with default cookies to prevent blocks
   const headers = {
     'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36',
     'Referer': 'https://www.jiosaavn.com/',
-    'Accept': 'application/json'
+    'Accept': 'application/json',
+    'Cookie': 'L=hindi; DL=english;'
   };
 
   try {
@@ -184,13 +189,11 @@ export default async function handler(req, res) {
       if (!token) return res.status(400).json({ error: 'Missing artist token' });
 
       let artistUrl = `https://www.jiosaavn.com/api.php?__call=webapi.get&token=${encodeURIComponent(token)}&type=artist&p=${page}&n_song=50&n_album=0&sub_type=songs&more=true&category=&sort_order=&includeMetaTags=0&ctx=wap6dot0&api_version=4&_format=json&_marker=0`;
-      
       if (page === 0) {
         artistUrl = `https://www.jiosaavn.com/api.php?__call=webapi.get&token=${encodeURIComponent(token)}&type=artist&p=0&n_song=50&n_album=0&sub_type=&category=&sort_order=&includeMetaTags=0&ctx=wap6dot0&api_version=4&_format=json&_marker=0`;
       }
 
       const data = await safeFetchJSON(artistUrl, { headers });
-
       let rawSongs = [];
       if (data.topSongs) {
         if (Array.isArray(data.topSongs)) rawSongs = data.topSongs;
@@ -203,9 +206,7 @@ export default async function handler(req, res) {
         rawSongs = data;
       }
 
-      if (!rawSongs || rawSongs.length === 0) {
-        return res.status(404).json({ error: 'No songs found' });
-      }
+      if (!rawSongs || rawSongs.length === 0) return res.status(404).json({ error: 'No songs found' });
 
       const topSongs = rawSongs.map(song => {
         let artistName = song.subtitle || song.singers || 'Unknown Artist';
@@ -221,7 +222,7 @@ export default async function handler(req, res) {
       return res.status(200).json({
         name: data.name || data.title || '',
         image: String(data.image || '').replace('50x50', '500x500').replace('150x150', '500x500'),
-        subtitle: data.subtitle || 'Artist',
+        subtitle: data.subtitle || 'Artist Radar',
         topSongs: topSongs
       });
     }
@@ -237,7 +238,6 @@ export default async function handler(req, res) {
         const keys = Object.keys(data || {});
         if (keys.length > 0) songData = data[keys[0]];
       }
-
       if (!songData) return res.status(404).json({ error: 'Song details not found' });
 
       const encryptedUrl = songData.encrypted_media_url || songData.more_info?.encrypted_media_url;
@@ -253,6 +253,7 @@ export default async function handler(req, res) {
         title: cleanText(songData.song || songData.title),
         artist: cleanText(songData.primary_artists || songData.more_info?.primary_artists),
         album: cleanText(songData.album || songData.more_info?.album),
+        language: songData.language || 'hindi', // 🚨 For Autoplay Context
         image: (songData.image || songData.more_info?.image || '').replace('50x50', '500x500').replace('150x150', '500x500'),
         links: {
           '320': `${basePrefix}_320.${ext}`,
@@ -260,6 +261,28 @@ export default async function handler(req, res) {
           '96': `${basePrefix}_96.${ext}`
         }
       });
+    }
+
+    // 4.5 SMART RADIO API (TRENDING BY LANGUAGE)
+    if (action === 'recommend' || pathname.includes('/recommend')) {
+      const lang = req.query.lang || urlObj.searchParams.get('lang') || 'hindi';
+      const recoUrl = `https://www.jiosaavn.com/api.php?__call=content.getTrending&api_version=4&_format=json&_marker=0&ctx=wap6dot0&entity_type=song&entity_language=${encodeURIComponent(lang)}`;
+      
+      const data = await safeFetchJSON(recoUrl, { headers });
+      if (!data || !Array.isArray(data)) return res.status(404).json({ error: 'No recommendations found' });
+
+      const radioSongs = data.map(song => {
+        let artistName = song.subtitle || song.singers || song.primary_artists || 'Unknown Artist';
+        if (typeof artistName === 'string' && artistName.includes(' - ')) artistName = artistName.split(' - ')[0];
+        return {
+          pid: String(song.id || song.perma_url || '').split(',')[0].trim(),
+          title: cleanText(song.title || song.song),
+          artist: cleanText(artistName),
+          image: String(song.image || '').replace('50x50', '500x500').replace('150x150', '500x500')
+        };
+      });
+
+      return res.status(200).json(radioSongs);
     }
 
     // 5. DOWNLOAD PROXY
