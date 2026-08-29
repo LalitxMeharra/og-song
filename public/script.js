@@ -379,7 +379,7 @@ function renderPlayerQueue() {
     <div class="result-card ${isPlaying ? 'active-track' : ''}" onclick="openTrack('${r.pid}')" style="border:none; border-bottom:1px dashed var(--grid-line); box-shadow:none; padding: 8px 4px; background: transparent; border-radius: 0;">
       <img src="${r.image}" class="result-img" style="width:36px; height:36px;">
       <div class="result-info" style="padding-left: 10px;">
-        <div class="result-title">${r.title}</div>
+        <div class="result-title" style="${isPlaying ? 'color:var(--crimson);' : ''}">${r.title}</div>
         <div class="result-meta">${r.artist}</div>
       </div>
       ${isPlaying ? `<div class="playing-icon" style="color:var(--crimson);">▶</div>` : ``}
