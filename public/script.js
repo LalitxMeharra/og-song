@@ -146,23 +146,24 @@ function setupCollectionHeader(title, img, subtitle) {
 
 function renderCollectionList(songs, isArtist) {
   let html = songs.map((r, index) => {
+    const isPlaying = currentSongData && r.pid === currentSongData.pid;
     return `
-    <div class="result-card" onclick="openTrack('${r.pid}')" style="display:flex; align-items:center; gap:12px; padding:12px; border-bottom:1px dashed var(--grid-line); cursor:pointer;">
-      <div style="font-family:'Space Mono'; font-weight:900; font-size:14px; color:var(--text-muted); width:24px; text-align:center;">${index + 1}</div>
-      <div class="result-info" style="flex:1; overflow:hidden;">
-        <div class="result-title" style="font-size:14px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.title}</div>
-        <div class="result-meta" style="font-size:11px; color:#a89a8c; margin-top:2px;">${r.artist}</div>
+    <div class="result-card" onclick="openTrack('${r.pid}')" style="${isPlaying ? 'border-color:var(--crimson); background:#fdf2f1;' : ''}">
+      <div style="font-family:'Space Mono'; font-weight:900; font-size: 16px; color:var(--text-muted); width: 30px; text-align: center;">${index + 1}</div>
+      <div class="result-info" style="padding-left: 10px;">
+        <div class="result-title" style="${isPlaying ? 'color:var(--crimson);' : ''}">${r.title}</div>
+        <div class="result-meta">${r.artist}</div>
       </div>
-      <div style="font-size:18px; color:var(--ink-black);">▶</div>
+      <button class="btn-play-badge">PLAY</button>
     </div>
   `}).join('');
 
   if(isArtist) {
     html += `
-    <div style="display:flex; justify-content:space-between; padding: 20px 10px; gap:10px;">
-      <button class="btn-page" onclick="changeArtistPage(-1)" id="prevPageBtn" style="flex:1; padding:12px; background:transparent; border:2px dashed var(--border-dark); font-weight:bold; cursor:pointer;" ${currentArtistPage === 0 ? 'disabled' : ''}>← PREV</button>
-      <div style="font-size:12px; font-weight:bold; align-self:center;">PAGE ${currentArtistPage + 1}</div>
-      <button class="btn-page" onclick="changeArtistPage(1)" id="nextPageBtn" style="flex:1; padding:12px; background:transparent; border:2px dashed var(--border-dark); font-weight:bold; cursor:pointer;">NEXT →</button>
+    <div style="display:flex; justify-content:space-between; padding: 20px 0; gap:10px;">
+      <button class="btn-page" onclick="changeArtistPage(-1)" id="prevPageBtn" ${currentArtistPage === 0 ? 'disabled' : ''}>← PREV</button>
+      <div style="font-size:14px; font-weight:bold; align-self:center;">PAGE ${currentArtistPage + 1}</div>
+      <button class="btn-page" onclick="changeArtistPage(1)" id="nextPageBtn">NEXT →</button>
     </div>`;
   }
   document.getElementById('collectionList').innerHTML = html;
@@ -221,30 +222,31 @@ async function executeLiveSearch(query) {
     }
 
     const top = globalSearchResults[0];
-    
-    // Fixed Top Match UI with inline hardcoded styles to prevent large images
     document.getElementById('topMatchContainer').style.display = 'block';
+    
+    // Original Top Match Card design
     document.getElementById('topMatchCard').innerHTML = `
-      <div class="top-match-card" onclick="playFromSearch('${top.pid}')" style="display:flex; align-items:center; gap:16px; background:var(--ink-black); color:var(--bg-paper); padding:16px; border:2px solid var(--crimson); cursor:pointer;">
-        <img src="${top.image}" style="width:70px; height:70px; object-fit:cover; border:2px solid var(--bg-paper);">
-        <div class="info" style="flex:1; overflow:hidden;">
-          <div class="title" style="font-size:16px; font-weight:700; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${top.title}</div>
-          <div class="meta" style="font-size:12px; color:#a89a8c;">${top.artist}</div>
+      <div class="top-match-card" onclick="playFromSearch('${top.pid}')">
+        <img src="${top.image}">
+        <div class="info">
+          <div class="title">${top.title}</div>
+          <div class="meta">${top.artist}</div>
         </div>
-        <div style="font-size:24px; padding-right:10px;">▶</div>
+        <div class="top-match-badge">PLAY</div>
       </div>
     `;
 
-    // Fixed Results UI to prevent large images
     document.getElementById('otherResultsTitle').style.display = 'block';
+    
+    // Original Results List design
     document.getElementById('resultsList').innerHTML = globalSearchResults.slice(1).map((r, i) => `
-      <div class="result-card" onclick="playFromSearch('${r.pid}')" style="display:flex; align-items:center; gap:12px; background:var(--cream-card); border:2px solid var(--border-dark); padding:8px; cursor:pointer;">
-        <img src="${r.image}" alt="Cover" style="width:50px; height:50px; object-fit:cover; border:1px solid var(--border-dark);">
-        <div class="result-info" style="flex:1; overflow:hidden;">
-          <div class="result-title" style="font-size:13px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--ink-black);">${r.title}</div>
-          <div class="result-meta" style="font-size:11px; color:var(--text-muted); margin-top:4px;">${r.artist}</div>
+      <div class="result-card" onclick="playFromSearch('${r.pid}')">
+        <img class="result-img" src="${r.image}" alt="Cover">
+        <div class="result-info">
+          <div class="result-title">${r.title}</div>
+          <div class="result-meta">${r.artist}</div>
         </div>
-        <div style="font-size:18px; color:var(--ink-black); padding-right:10px;">▶</div>
+        <button class="btn-play-badge">PLAY</button>
       </div>
     `).join('');
   } catch (err) { searchSpinner.style.display = 'none'; }
@@ -256,49 +258,48 @@ window.playFromSearch = async function(pid) {
   
   isSearchContext = true;
   hasExtendedQueue = false;
-  currentContextList = [song];
+  currentContextList = [song]; // Clear old queue and set new clicked song
   currentTrackIndex = 0;
   openTrack(pid);
 };
 
 const audio = document.getElementById('audio');
 
-// 10 Second Skips Removed from Background Controls
 function setupMediaSession(data) {
-  try {
-    if ('mediaSession' in navigator) {
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: data.title,
-        artist: data.artist,
-        album: data.album || 'Single',
-        artwork: [{ src: data.image, sizes: '500x500', type: 'image/jpeg' }]
-      });
-      navigator.mediaSession.setActionHandler('play', togglePlay);
-      navigator.mediaSession.setActionHandler('pause', togglePlay);
-      navigator.mediaSession.setActionHandler('previoustrack', playPrevSong);
-      navigator.mediaSession.setActionHandler('nexttrack', playNextSong);
-      
-      navigator.mediaSession.setActionHandler('seekbackward', null);
-      navigator.mediaSession.setActionHandler('seekforward', null);
-    }
-  } catch(e) {}
+  if ('mediaSession' in navigator) {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: data.title,
+      artist: data.artist,
+      album: data.album || 'Single',
+      artwork: [{ src: data.image, sizes: '500x500', type: 'image/jpeg' }]
+    });
+    navigator.mediaSession.setActionHandler('play', togglePlay);
+    navigator.mediaSession.setActionHandler('pause', togglePlay);
+    navigator.mediaSession.setActionHandler('previoustrack', playPrevSong);
+    navigator.mediaSession.setActionHandler('nexttrack', playNextSong);
+  }
 }
 
 async function openTrack(pid) {
   showToast('Connecting to stream...');
+  
+  // Set UI immediately to prevent "paused" look before load
+  setPlayState(false); 
+  
   try {
     const res = await fetch(`/api/details?pid=${encodeURIComponent(pid)}`);
+    if(!res.ok) throw new Error('Network Issue');
     const data = await res.json();
     
-    // Simple Auto-skip without infinite loop crashes
+    // Auto-skip loops removed. If track fails, it stops and alerts.
     if(!data.success) {
-       showToast('Track unavailable. Skipping...');
-       setTimeout(() => playNextSong(), 1500);
+       showToast('Track unavailable right now.');
        return;
     }
 
     currentSongData = data;
     
+    // Smart Queue Logic: only fetch if from Search
     if (isSearchContext) {
       fetch(`/api/recommend?lang=${data.language || 'hindi'}`)
         .then(r => r.json())
@@ -313,6 +314,11 @@ async function openTrack(pid) {
     } else {
       currentTrackIndex = currentContextList.findIndex(t => t.pid === pid);
       renderPlayerQueue();
+    }
+
+    // Refresh collection list if active
+    if (document.getElementById('collectionView').classList.contains('active')) {
+      renderCollectionList(currentContextList, currentArtistToken !== '');
     }
 
     document.getElementById('pTitle').textContent = data.title;
@@ -338,20 +344,26 @@ async function openTrack(pid) {
     audio.playbackRate = parseFloat(document.getElementById('speed').value);
     
     setupMediaSession(data);
-    audio.play().then(() => setPlayState(true)).catch(() => { setPlayState(false); showToast('Tap play to start'); });
+    
+    // Start Audio
+    audio.play().catch(e => {
+        console.error(e);
+        setPlayState(false);
+        showToast('Tap play to start audio');
+    });
 
     saveToArchive(data);
     checkActionStates(data.pid);
   } catch (err) { 
-    showToast('Network Error. Skipping...'); 
-    setTimeout(() => playNextSong(), 1500); 
+    showToast('Network Error. Please try again.'); 
+    setPlayState(false);
   }
 }
 
-// 🚨 Reverse Loop Extend Queue Logic (One Time Execution)
+// 🚨 SMART EXTEND QUEUE: Reverse Loop Logic (1-time extension) 🚨
 window.extendQueue = async function() {
   if(hasExtendedQueue) {
-    showToast('Queue limit reached.');
+    showToast('Queue already extended.');
     return;
   }
   const btn = document.getElementById('extQueueBtn');
@@ -359,10 +371,12 @@ window.extendQueue = async function() {
   
   let success = false;
   
+  // Loops backwards from the last track to find valid recommendations
   for (let i = currentContextList.length - 1; i >= 0; i--) {
      const track = currentContextList[i];
      try {
        const res = await fetch(`/api/recommend?lang=${track.language || 'hindi'}`);
+       if(!res.ok) continue;
        const newSongs = await res.json();
        const existingPids = new Set(currentContextList.map(s => s.pid));
        const unique = newSongs.filter(s => !existingPids.has(s.pid));
@@ -371,7 +385,7 @@ window.extendQueue = async function() {
          currentContextList.push(...unique);
          renderPlayerQueue();
          success = true;
-         hasExtendedQueue = true; // Limits to one execution
+         hasExtendedQueue = true; // Prevents endless loading
          break;
        }
      } catch(e) { continue; }
@@ -384,32 +398,47 @@ window.extendQueue = async function() {
 };
 
 function renderPlayerQueue() {
-  // Wait if the queue element doesn't exist in original HTML
-  const queueEl = document.getElementById('playerQueueList') || document.getElementById('collectionList');
-  if(!queueEl) return;
-  if(currentContextList.length <= 1 && !isSearchContext) return;
+  const queueEl = document.getElementById('playerQueueSection');
+  if(!queueEl) {
+      // If player queue section doesn't exist, inject it dynamically at bottom of full-player content
+      const content = document.querySelector('.fp-content');
+      if(content) {
+          const qSec = document.createElement('div');
+          qSec.id = 'playerQueueSection';
+          qSec.style.width = '100%';
+          qSec.style.maxWidth = '400px';
+          qSec.style.marginTop = '20px';
+          content.appendChild(qSec);
+      }
+  }
 
-  let html = currentContextList.map((r, index) => {
+  const container = document.getElementById('playerQueueSection');
+  if(!container) return;
+
+  if(currentContextList.length <= 1 && !isSearchContext) { 
+      container.innerHTML = ''; 
+      return; 
+  }
+
+  let html = `<div style="font-family:'Space Mono'; font-weight:900; font-size:14px; color:var(--crimson); margin-bottom:12px; letter-spacing:1px; border-bottom:1px dashed var(--grid-line); padding-bottom:4px;">UP NEXT</div>`;
+  
+  html += currentContextList.map((r, index) => {
     const isPlaying = index === currentTrackIndex;
     return `
-    <div class="result-card" onclick="openTrack('${r.pid}')" style="display:flex; align-items:center; gap:12px; padding:8px; border-bottom:1px dashed var(--grid-line); cursor:pointer; background: ${isPlaying ? '#fdf2f1' : 'transparent'}; border-radius:4px;">
-      <img src="${r.image}" style="width:44px; height:44px; object-fit:cover; border:1px solid var(--border-dark); border-radius:4px;">
-      <div class="result-info" style="flex:1; overflow:hidden;">
-        <div class="result-title" style="font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color: ${isPlaying ? 'var(--crimson)' : 'var(--ink-black)'};">${r.title}</div>
-        <div class="result-meta" style="font-size:11px; color:var(--text-muted);">${r.artist}</div>
+    <div class="result-card" onclick="openTrack('${r.pid}')" style="${isPlaying ? 'border-color:var(--crimson); background:#fdf2f1;' : 'background:transparent;'}">
+      <img src="${r.image}" class="result-img" style="width:40px; height:40px;">
+      <div class="result-info">
+        <div class="result-title" style="${isPlaying ? 'color:var(--crimson);' : ''}">${r.title}</div>
+        <div class="result-meta">${r.artist}</div>
       </div>
-      ${isPlaying ? `<div style="color:var(--crimson); font-size:14px; animation: blink 1s infinite alternate;">▶</div>` : ''}
     </div>
   `}).join('');
 
   if(!hasExtendedQueue) {
-    html += `<div style="text-align:center; padding: 16px;"><button class="btn-page" onclick="extendQueue()" id="extQueueBtn" style="padding:10px; font-size:12px; width:100%; background:var(--cream-card); border:2px dashed var(--border-dark); font-family:'Space Mono'; font-weight:bold; cursor:pointer;">LOAD MORE RELATED ↓</button></div>`;
+    html += `<div style="text-align:center; padding: 16px;"><button class="btn-page" onclick="extendQueue()" id="extQueueBtn">LOAD MORE RELATED ↓</button></div>`;
   }
   
-  // Create Up Next Header if injected directly
-  const upNextHeader = `<div style="font-family:'Space Mono'; font-weight:900; font-size:12px; color:var(--crimson); margin-bottom:12px; text-transform:uppercase; letter-spacing:1px; border-bottom:1px dashed var(--grid-line); padding-bottom:4px; margin-top:20px;">Up Next</div>`;
-  
-  queueEl.innerHTML = upNextHeader + html;
+  container.innerHTML = html;
 }
 
 document.getElementById('closePlayerBtn').addEventListener('click', () => { document.getElementById('fullPlayer').classList.remove('open'); });
@@ -423,23 +452,34 @@ document.getElementById('mpPlayBtn').addEventListener('click', function(e) { e.s
 document.getElementById('playBtn').addEventListener('click', () => togglePlay());
 
 function togglePlay() { 
-  if (audio.paused && audio.src) { audio.play().then(() => setPlayState(true)).catch(() => {}); } 
-  else { audio.pause(); setPlayState(false); } 
+  if (audio.paused && audio.src) { 
+      audio.play().catch(()=>{}); 
+  } else { 
+      audio.pause(); 
+  } 
 }
 
-// 🚨 FIXED PLAY/PAUSE UI FLIP (Matches Dojo original text symbols) 🚨
+// Proper UI State Sync matching Audio Element State
 function setPlayState(isPlaying) {
   document.getElementById('playBtn').textContent = isPlaying ? '❚❚' : '▶';
   document.getElementById('mpPlayBtn').textContent = isPlaying ? '❚❚' : '▶';
   document.getElementById('discCover').classList.toggle('playing', isPlaying);
 }
 
+// Bind state purely to audio events
+audio.addEventListener('play', () => setPlayState(true));
+audio.addEventListener('pause', () => setPlayState(false));
+audio.addEventListener('ended', () => { setPlayState(false); playNextSong(); });
+audio.addEventListener('error', () => { 
+    setPlayState(false); 
+    showToast('Audio playback error.'); 
+});
+
 function playPrevSong() {
   if (currentContextList.length > 0 && currentTrackIndex > 0) {
     openTrack(currentContextList[currentTrackIndex - 1].pid);
   } else {
     audio.currentTime = 0;
-    showToast('Restarting track');
   }
 }
 
@@ -448,16 +488,12 @@ function playNextSong() {
     openTrack(currentContextList[currentTrackIndex + 1].pid);
   } else {
     showToast('Vault Finished');
+    setPlayState(false);
   }
 }
 
 document.getElementById('prevTrackBtn').addEventListener('click', playPrevSong);
 document.getElementById('nextTrackBtn').addEventListener('click', playNextSong);
-
-audio.addEventListener('play', () => setPlayState(true));
-audio.addEventListener('pause', () => setPlayState(false));
-audio.addEventListener('ended', () => { setPlayState(false); playNextSong(); });
-audio.addEventListener('error', () => { showToast('Stream lost. Skipping...'); setTimeout(() => playNextSong(), 1500); });
 
 const seek = document.getElementById('seek');
 const curTime = document.getElementById('curTime');
@@ -483,13 +519,13 @@ function renderArchive() {
   if(!archive.length) { list.innerHTML = `<div style="padding:24px;text-align:center;border:2px dashed var(--border-dark);">No playback history.</div>`; return; }
   
   list.innerHTML = archive.map(r => `
-    <div class="result-card" onclick="isSearchContext=false; currentContextList=JSON.parse(localStorage.getItem('og_archive')||'[]'); openTrack('${r.pid}')" style="display:flex; align-items:center; gap:12px; padding:8px; border:2px solid var(--border-dark); background:var(--cream-card); cursor:pointer;">
-      <img src="${r.image}" alt="Cover" style="width:50px; height:50px; object-fit:cover; border:1px solid var(--border-dark);">
-      <div class="result-info" style="flex:1; overflow:hidden;">
-        <div class="result-title" style="font-weight:bold; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.title}</div>
-        <div class="result-meta" style="font-size:11px; color:var(--text-muted); margin-top:4px;">${r.artist}</div>
+    <div class="result-card" onclick="isSearchContext=false; currentContextList=JSON.parse(localStorage.getItem('og_archive')||'[]'); openTrack('${r.pid}')">
+      <img class="result-img" src="${r.image}" alt="Cover">
+      <div class="result-info">
+        <div class="result-title">${r.title}</div>
+        <div class="result-meta">${r.artist}</div>
       </div>
-      <div style="font-size:18px; padding-right:10px;">▶</div>
+      <button class="btn-play-badge">PLAY</button>
     </div>
   `).join('');
 }
@@ -533,13 +569,13 @@ function renderLibrary() {
   if(!libs.length) { list.innerHTML = `<div style="padding:24px;text-align:center;border:2px dashed var(--border-dark);">No saved songs.</div>`; return; }
   
   list.innerHTML = libs.map(r => `
-    <div class="result-card" onclick="isSearchContext=false; currentContextList=JSON.parse(localStorage.getItem('og_library')||'[]'); openTrack('${r.pid}')" style="display:flex; align-items:center; gap:12px; padding:8px; border:2px solid var(--border-dark); background:var(--cream-card); cursor:pointer;">
-      <img src="${r.image}" alt="Cover" style="width:50px; height:50px; object-fit:cover; border:1px solid var(--border-dark);">
-      <div class="result-info" style="flex:1; overflow:hidden;">
-        <div class="result-title" style="font-weight:bold; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.title}</div>
-        <div class="result-meta" style="font-size:11px; color:var(--text-muted); margin-top:4px;">${r.artist}</div>
+    <div class="result-card" onclick="isSearchContext=false; currentContextList=JSON.parse(localStorage.getItem('og_library')||'[]'); openTrack('${r.pid}')">
+      <img class="result-img" src="${r.image}" alt="Cover">
+      <div class="result-info">
+        <div class="result-title">${r.title}</div>
+        <div class="result-meta">${r.artist}</div>
       </div>
-      <div style="font-size:18px; padding-right:10px;">▶</div>
+      <button class="btn-play-badge">PLAY</button>
     </div>
   `).join('');
 }
