@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>OG-SONG.DL - The Master Vault</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  
+  <header class="top-bar">
+    <div class="brand">OG-SONG<span>.DL</span></div>
+    <div class="top-badge">極音 320 KBPS</div>
+  </header>
+
+  <main id="homeView" class="view active">
+    <div class="hero-section">
+      <div class="hero-badge">v4.2.0 • SMART ENGINE</div>
+      <h1 class="hero-title">Discover.<br><span class="highlight">Download</span> Free.</h1>
+    </div>
+    
+    <div class="section-title"><span>01</span> Your Favorites ❤️</div>
+    <div class="h-scroll" id="favoritesGrid"></div>
+
+    <div class="section-title"><span>02</span> Trending Now 🔥</div>
+    <div class="h-scroll" id="trendingGrid"></div>
+
+    <div class="section-title"><span>03</span> New Releases ⚡</div>
+    <div class="h-scroll" id="newReleasesGrid"></div>
+
+    <div class="section-title"><span>04</span> Artist Radar 🎧</div>
+    <div class="h-scroll" id="artistsGrid"></div>
+  </main>
+
+  <main id="exploreView" class="view">
+    <div class="search-container">
+      <input type="text" id="q" placeholder="Type a song, artist, or album..." autocomplete="off">
+    </div>
+    <div id="searchSpinner" style="display:none; text-align:center; padding: 20px; font-family:'Space Mono'; color:var(--crimson);">Searching the vault...</div>
+    <div id="topMatchContainer" style="display:none; margin-bottom: 24px;">
+      <div class="section-title"><span>★</span> Top Match</div>
+      <div id="topMatchCard"></div>
+    </div>
+    <div class="section-title" id="otherResultsTitle" style="display:none;"><span>■</span> Results</div>
+    <div id="resultsList" class="list-container"></div>
+  </main>
+
+  <main id="playlistView" class="view">
+    <div class="section-title"><span>★</span> My Library</div>
+    <div class="lib-tabs">
+      <button class="lib-tab active" id="tabSongs" onclick="switchLibTab('songs')">Saved Songs</button>
+      <button class="lib-tab" id="tabCollections" onclick="switchLibTab('collections')">Saved Collections</button>
+    </div>
+    <div id="playlistGrid" class="list-container"></div>
+    <div id="savedCollectionsGrid" class="list-container" style="display: none;"></div>
+  </main>
+
+  <main id="archiveView" class="view">
+    <div class="section-title"><span>⏱</span> Listen History</div>
+    <div id="archiveList" class="list-container"></div>
+  </main>
+
+  <main id="collectionView" class="view">
+    <div class="collection-header">
+      <button class="back-btn" id="collectionBackBtn">← BACK TO HOME</button>
+      <img id="colImg" src="" alt="Cover">
+      <h2 id="colTitle">Collection</h2>
+      <div class="col-meta" id="colSubtitle">Album</div>
+      <button class="save-col-btn" id="saveCollectionBtn" onclick="toggleCollectionSave()">+ Save Collection</button>
+    </div>
+    <div id="collectionList" class="list-container" style="margin-top: 16px;"></div>
+  </main>
+
+  <div class="mini-player" id="miniPlayer" style="display: none;">
+    <img id="mpCover" src="" alt="Cover">
+    <div class="mp-info">
+      <div class="mp-title" id="mpTitle">Title</div>
+      <div class="mp-artist" id="mpArtist">Artist</div>
+    </div>
+    <button class="mp-play" id="mpPlayBtn">▶</button>
+  </div>
+
+  <div class="full-player" id="fullPlayer">
+    <div class="fp-header">
+      <button class="fp-close" id="closePlayerBtn">↓ 閉じる CLOSE PLAYER</button>
+    </div>
+    
+    <div class="fp-content">
+      <div class="disc-cover" id="discCover">
+        <img id="playerCover" src="" alt="Cover">
+      </div>
+      
+      <div class="fp-info">
+        <h2 id="pTitle">Title</h2>
+        <div class="fp-meta">
+          <span class="fp-artist" id="pArtist">Artist</span>
+        </div>
+        <div class="fp-album" id="pAlbum">Album</div>
+        
+        <div class="action-row">
+          <button class="action-btn" id="favBtn" title="Favorite">♡</button>
+          <button class="action-btn" id="libBtn" title="Add to Library">+</button>
+        </div>
+      </div>
+
+      <div class="player-engine">
+        <div class="control-panel">
+          <div class="transport-row">
+            <button class="p-btn" id="prevTrackBtn" title="Previous Song">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+            </button>
+            <button class="p-btn p-play" id="playBtn">▶</button>
+            <button class="p-btn" id="nextTrackBtn" title="Next Song">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+            </button>
+          </div>
+
+          <div class="seek-wrap" style="margin-bottom: 16px;">
+            <span class="time" id="curTime">0:00</span>
+            <input type="range" id="seek" min="0" max="100" value="0" step="0.1">
+            <span class="time" id="durTime">0:00</span>
+          </div>
+
+          <div class="sub-controls">
+            <div class="vol-box">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+              <input type="range" id="vol" min="0" max="100" value="85">
+            </div>
+            <div class="speed-box">
+              <select id="speed">
+                <option value="0.75">0.75×</option>
+                <option value="1" selected>1.0×</option>
+                <option value="1.25">1.25×</option>
+                <option value="1.5">1.5×</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <button class="master-dl-btn" id="openDlModal">⚡ DOWNLOAD AUDIO STAMPS</button>
+      </div>
+
+      <!-- UP NEXT QUEUE IN PLAYER -->
+      <div class="queue-section" id="playerQueueSection">
+        <div class="queue-title">Up Next</div>
+        <div id="playerQueueList" class="list-container"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <div class="nav-item active" data-target="homeView">
+      <div class="icon">🏠</div><span>Home</span>
+    </div>
+    <div class="nav-item" data-target="exploreView">
+      <div class="icon">🔍</div><span>Explore</span>
+    </div>
+    <div class="nav-item" data-target="playlistView">
+      <div class="icon">🎵</div><span>Library</span>
+    </div>
+    <div class="nav-item" data-target="archiveView">
+      <div class="icon">⏳</div><span>Archive</span>
+    </div>
+  </nav>
+
+  <div class="modal-overlay" id="dlModal">
+    <div class="modal-box">
+      <div class="modal-title">Select Audio Quality</div>
+      <a id="btn320" class="dl-link" download>320 KBPS <span class="badge">HQ</span></a>
+      <a id="btn160" class="dl-link" download>160 KBPS <span class="badge">SQ</span></a>
+      <a id="btn96" class="dl-link" download>96 KBPS <span class="badge">LQ</span></a>
+      <button class="modal-close" id="closeDlModal">Cancel</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="exitModal">
+    <div class="modal-box" style="text-align: center;">
+      <div class="modal-title" style="margin-bottom: 16px;">Leave the Dojo?</div>
+      <p style="font-family:'Space Mono'; font-size:12px; margin-bottom: 24px; color:var(--text-muted);">Audio streams will terminate.</p>
+      <div style="display:flex; gap:12px; justify-content:center;">
+        <button class="btn-page" id="btnExitYes" style="flex:1;">Yes</button>
+        <button class="master-dl-btn" id="btnExitNo" style="flex:1; margin-top:0;">Stay</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"><span id="toastMsg"></span></div>
+  <audio id="audio"></audio>
+
+  <footer class="premium-footer">
+    <div class="f-brand">OG-SONG<span>.DL</span></div>
+    <p class="f-tagline">Master Sound. Ad-Free. Limits Eliminated.</p>
+    <div class="f-links">
+      <a href="#">Explore Dojo</a> • <a href="#">API Engine</a> • <a href="#">Terms</a>
+    </div>
+    <div class="f-copy">© 2026 OG-SONG Downloader. Pure Audio Freedom.</div>
+  </footer>
+
+  <script src="/script.js"></script>
+</body>
+</html>
