@@ -14,7 +14,6 @@
     <div class="top-badge">極音 320 KBPS</div>
   </header>
 
-  <!-- HOME VIEW -->
   <main id="homeView" class="view active">
     <div class="hero-section">
       <div class="hero-badge">v4.1.0 • LIVE ENGINE</div>
@@ -34,7 +33,6 @@
     <div class="h-scroll" id="artistsGrid"></div>
   </main>
 
-  <!-- EXPLORE VIEW -->
   <main id="exploreView" class="view">
     <div class="search-container">
       <input type="text" id="q" placeholder="Type a song, artist, or album..." autocomplete="off">
@@ -48,22 +46,19 @@
     <div id="resultsList" class="list-container"></div>
   </main>
 
-  <!-- LIBRARY VIEW -->
   <main id="playlistView" class="view">
     <div class="section-title"><span>★</span> My Library</div>
     <div id="playlistGrid" class="list-container"></div>
   </main>
 
-  <!-- ARCHIVE VIEW -->
   <main id="archiveView" class="view">
     <div class="section-title"><span>⏱</span> Listen History</div>
     <div id="archiveList" class="list-container"></div>
   </main>
 
-  <!-- COLLECTION VIEW (ALBUMS & ARTISTS) -->
   <main id="collectionView" class="view">
     <div class="collection-header">
-      <button class="back-btn" id="collectionBackBtn">← BACK</button>
+      <button class="back-btn" id="collectionBackBtn">← BACK TO HOME</button>
       <img id="colImg" src="" alt="Cover">
       <h2 id="colTitle">Collection</h2>
       <div class="col-meta" id="colSubtitle">Album</div>
@@ -71,7 +66,6 @@
     <div id="collectionList" class="list-container" style="margin-top: 16px;"></div>
   </main>
 
-  <!-- MINI PLAYER -->
   <div class="mini-player" id="miniPlayer" style="display: none;">
     <img id="mpCover" src="" alt="Cover">
     <div class="mp-info">
@@ -81,7 +75,6 @@
     <button class="mp-play" id="mpPlayBtn">▶</button>
   </div>
 
-  <!-- FULL PLAYER -->
   <div class="full-player" id="fullPlayer">
     <div class="fp-header">
       <button class="fp-close" id="closePlayerBtn">↓ 閉じる CLOSE PLAYER</button>
@@ -144,7 +137,6 @@
     </div>
   </div>
 
-  <!-- BOTTOM NAV -->
   <nav class="bottom-nav">
     <div class="nav-item active" data-target="homeView">
       <div class="icon">🏠</div><span>Home</span>
@@ -160,7 +152,6 @@
     </div>
   </nav>
 
-  <!-- DOWNLOAD MODAL -->
   <div class="modal-overlay" id="dlModal">
     <div class="modal-box">
       <div class="modal-title">Select Audio Quality</div>
@@ -171,7 +162,6 @@
     </div>
   </div>
 
-  <!-- EXIT MODAL -->
   <div class="modal-overlay" id="exitModal">
     <div class="modal-box" style="text-align: center;">
       <div class="modal-title" style="margin-bottom: 16px;">Leave the Dojo?</div>
