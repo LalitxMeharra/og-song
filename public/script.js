@@ -4,6 +4,7 @@ let currentContextList = [];
 let currentTrackIndex = -1;
 let currentArtistToken = '';
 let currentArtistPage = 0;
+let isSearchContext = false;
 
 const Router = {
   init() {
@@ -30,18 +31,6 @@ const Router = {
       n.classList.remove('active');
       if(n.dataset.target === viewId) n.classList.add('active');
     });
-  },
-  handleBack(e) {
-    if (document.getElementById('fullPlayer').classList.contains('open')) {
-      document.getElementById('fullPlayer').classList.remove('open');
-    } 
-    else if (e.state && e.state.view) {
-      this.switchUI(e.state.view);
-    } 
-    else if (e.state && e.state.step === 'trap') {
-      document.getElementById('exitModal').style.display = 'flex';
-      history.pushState({ step: 'home', view: 'homeView' }, '');
-    }
   }
 };
 
@@ -76,13 +65,8 @@ document.querySelectorAll('.nav-item').forEach(item => {
   });
 });
 
-document.getElementById('btnExitNo').addEventListener('click', () => {
-  document.getElementById('exitModal').style.display = 'none';
-});
-document.getElementById('btnExitYes').addEventListener('click', () => {
-  document.getElementById('exitModal').style.display = 'none';
-  window.history.go(-2); 
-});
+document.getElementById('btnExitNo').addEventListener('click', () => document.getElementById('exitModal').style.display = 'none');
+document.getElementById('btnExitYes').addEventListener('click', () => { document.getElementById('exitModal').style.display = 'none'; window.history.go(-2); });
 
 async function loadHomeData() {
   try {
@@ -103,14 +87,16 @@ async function loadHomeData() {
 
 window.handleCardClick = async function(id, type, title, img) {
   if (type === 'song') {
+    isSearchContext = false;
     openTrack(id);
   } else if (type === 'artist') {
+    isSearchContext = false;
     currentArtistToken = id;
     currentArtistPage = 0;
     document.getElementById('colImg').src = img;
     document.getElementById('colTitle').textContent = title;
     document.getElementById('colSubtitle').textContent = 'ARTIST RADAR';
-    document.getElementById('collectionList').innerHTML = `<div style="text-align:center; padding: 40px; font-family:'Space Mono'; color:var(--crimson);">Loading Top 50 Hits...</div>`;
+    document.getElementById('collectionList').innerHTML = `<div style="text-align:center; padding: 40px; font-family:'Space Mono'; color:var(--crimson);">Loading Top Hits...</div>`;
     Router.navigate('collectionView');
 
     try {
@@ -126,6 +112,7 @@ window.handleCardClick = async function(id, type, title, img) {
       document.getElementById('collectionList').innerHTML = `<div style="text-align:center; padding: 20px; color:var(--crimson);">Error loading artist.</div>`;
     }
   } else {
+    isSearchContext = false;
     document.getElementById('colImg').src = img;
     document.getElementById('colTitle').textContent = title;
     document.getElementById('colSubtitle').textContent = 'ALBUM / PLAYLIST';
@@ -160,7 +147,7 @@ function renderCollectionList(songs, isArtist) {
   `).join('');
 
   if(isArtist) {
-    html += `<div style="text-align:center; padding: 20px;"><button class="btn-page" onclick="loadMoreArtistSongs()" id="loadMoreBtn">LOAD NEXT 50 SONGS ↓</button></div>`;
+    html += `<div style="text-align:center; padding: 20px;"><button class="btn-page" onclick="loadMoreArtistSongs()" id="loadMoreBtn">LOAD MORE SONGS ↓</button></div>`;
   }
   document.getElementById('collectionList').innerHTML = html;
 }
@@ -183,6 +170,9 @@ window.loadMoreArtistSongs = async function() {
   }
 };
 
+// 🚨 FIXED BACK BUTTON (Clears Stack Conflict)
+document.getElementById('collectionBackBtn').addEventListener('click', () => { Router.navigate('homeView'); });
+
 const qInput = document.getElementById('q');
 const searchSpinner = document.getElementById('searchSpinner');
 
@@ -201,6 +191,7 @@ qInput.addEventListener('input', (e) => {
 
 async function executeLiveSearch(query) {
   try {
+    isSearchContext = true; // Signals auto-play to fetch smart radio
     const res = await fetch(`/api/search?q=${encodeURIComponent(query)}&_t=${Date.now()}`);
     const data = await res.json();
     searchSpinner.style.display = 'none';
@@ -235,9 +226,7 @@ async function executeLiveSearch(query) {
         <button class="btn-play-badge">PLAY</button>
       </div>
     `).join('');
-  } catch (err) {
-    searchSpinner.style.display = 'none';
-  }
+  } catch (err) { searchSpinner.style.display = 'none'; }
 }
 
 const audio = document.getElementById('audio');
@@ -250,8 +239,21 @@ async function openTrack(pid) {
 
     currentSongData = data;
     
-    // Find index in current context for Prev/Next
-    currentTrackIndex = currentContextList.findIndex(t => t.pid === pid);
+    // 🚨 SMART RADIO AUTO-QUEUE (Replaces loops with fresh hits)
+    if (isSearchContext && !window.isFetchingRadio) {
+      window.isFetchingRadio = true;
+      fetch(`/api/recommend?lang=${data.language || 'hindi'}`)
+        .then(r => r.json())
+        .then(radioSongs => {
+          if (radioSongs && radioSongs.length > 0) {
+            currentContextList = [data, ...radioSongs.filter(s => s.pid !== data.pid)];
+            currentTrackIndex = 0; 
+          }
+          window.isFetchingRadio = false;
+        }).catch(() => { window.isFetchingRadio = false; });
+    } else if (!isSearchContext) {
+      currentTrackIndex = currentContextList.findIndex(t => t.pid === pid);
+    }
 
     document.getElementById('pTitle').textContent = data.title;
     document.getElementById('pArtist').textContent = data.artist;
@@ -294,9 +296,7 @@ document.getElementById('mpPlayBtn').addEventListener('click', function(e) {
   togglePlay();
 });
 
-document.getElementById('playBtn').addEventListener('click', function() {
-  togglePlay();
-});
+document.getElementById('playBtn').addEventListener('click', () => togglePlay());
 
 function togglePlay() { 
   if (audio.paused && audio.src) { audio.play(); setPlayState(true); } else { audio.pause(); setPlayState(false); } 
@@ -308,7 +308,6 @@ function setPlayState(isPlaying) {
   document.getElementById('discCover').classList.toggle('playing', isPlaying);
 }
 
-// 🚨 PREV / NEXT / AUTOPLAY LOGIC 🚨
 document.getElementById('prevTrackBtn').addEventListener('click', () => {
   if (currentContextList.length > 0 && currentTrackIndex > 0) {
     openTrack(currentContextList[currentTrackIndex - 1].pid);
@@ -318,14 +317,11 @@ document.getElementById('prevTrackBtn').addEventListener('click', () => {
   }
 });
 
-document.getElementById('nextTrackBtn').addEventListener('click', () => { playNextSong(); });
+document.getElementById('nextTrackBtn').addEventListener('click', () => playNextSong());
 
 audio.addEventListener('play', () => setPlayState(true));
 audio.addEventListener('pause', () => setPlayState(false));
-audio.addEventListener('ended', () => { 
-  setPlayState(false); 
-  playNextSong(); 
-});
+audio.addEventListener('ended', () => { setPlayState(false); playNextSong(); });
 
 function playNextSong() {
   if (currentContextList.length > 0 && currentTrackIndex >= 0 && currentTrackIndex < currentContextList.length - 1) {
@@ -357,7 +353,7 @@ function renderArchive() {
   const archive = JSON.parse(localStorage.getItem('og_archive') || '[]');
   const list = document.getElementById('archiveList');
   if(!archive.length) { list.innerHTML = `<div style="padding:24px;text-align:center;border:2px dashed var(--border-dark);">No playback history.</div>`; return; }
-  list.innerHTML = archive.map(r => `<div class="result-card" onclick="currentContextList=JSON.parse(localStorage.getItem('og_archive')||'[]'); openTrack('${r.pid}')"><img class="result-img" src="${r.image}" alt="Cover"><div class="result-info"><div class="result-title">${r.title}</div><div class="result-meta">${r.artist}</div></div><button class="btn-play-badge">PLAY</button></div>`).join('');
+  list.innerHTML = archive.map(r => `<div class="result-card" onclick="isSearchContext=false; currentContextList=JSON.parse(localStorage.getItem('og_archive')||'[]'); openTrack('${r.pid}')"><img class="result-img" src="${r.image}" alt="Cover"><div class="result-info"><div class="result-title">${r.title}</div><div class="result-meta">${r.artist}</div></div><button class="btn-play-badge">PLAY</button></div>`).join('');
 }
 
 function toggleStorage(key, btnElem, activeIcon, inactiveIcon, addMsg, removeMsg) {
@@ -390,14 +386,14 @@ function renderFavorites() {
   const favs = JSON.parse(localStorage.getItem('og_favorites') || '[]');
   const grid = document.getElementById('favoritesGrid');
   if(!favs.length) { grid.innerHTML = `<div style="font-size:12px;color:var(--text-muted);padding:10px;">No favorites yet.</div>`; return; }
-  grid.innerHTML = favs.map(i => `<div class="grid-card" onclick="currentContextList=JSON.parse(localStorage.getItem('og_favorites')||'[]'); openTrack('${i.pid}')"><img src="${i.image}" alt="Art"><div class="grid-title">${i.title}</div></div>`).join('');
+  grid.innerHTML = favs.map(i => `<div class="grid-card" onclick="isSearchContext=false; currentContextList=JSON.parse(localStorage.getItem('og_favorites')||'[]'); openTrack('${i.pid}')"><img src="${i.image}" alt="Art"><div class="grid-title">${i.title}</div></div>`).join('');
 }
 
 function renderLibrary() {
   const libs = JSON.parse(localStorage.getItem('og_library') || '[]');
   const list = document.getElementById('playlistGrid');
   if(!libs.length) { list.innerHTML = `<div style="padding:24px;text-align:center;border:2px dashed var(--border-dark);">Library is empty.</div>`; return; }
-  list.innerHTML = libs.map(r => `<div class="result-card" onclick="currentContextList=JSON.parse(localStorage.getItem('og_library')||'[]'); openTrack('${r.pid}')"><img class="result-img" src="${r.image}" alt="Cover"><div class="result-info"><div class="result-title">${r.title}</div><div class="result-meta">${r.artist}</div></div><button class="btn-play-badge">PLAY</button></div>`).join('');
+  list.innerHTML = libs.map(r => `<div class="result-card" onclick="isSearchContext=false; currentContextList=JSON.parse(localStorage.getItem('og_library')||'[]'); openTrack('${r.pid}')"><img class="result-img" src="${r.image}" alt="Cover"><div class="result-info"><div class="result-title">${r.title}</div><div class="result-meta">${r.artist}</div></div><button class="btn-play-badge">PLAY</button></div>`).join('');
 }
 
 document.getElementById('openDlModal').addEventListener('click', () => document.getElementById('dlModal').style.display = 'flex');
