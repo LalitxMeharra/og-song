@@ -7,7 +7,7 @@ let currentArtistToken = '';
 let currentArtistPage = 0;
 let isSearchContext = false;
 let currentCollectionInfo = null; 
-let hasExtendedQueue = false; // Prevents infinite loops
+let hasExtendedQueue = false;
 
 const Router = {
   init() {
@@ -259,26 +259,25 @@ window.playFromSearch = async function(pid) {
 
 const audio = document.getElementById('audio');
 
-// 🚨 SMART MEDIA SESSION - 10 SEC SKIP REMOVED 🚨
 function setupMediaSession(data) {
-  if ('mediaSession' in navigator) {
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: data.title,
-      artist: data.artist,
-      album: data.album || 'Single',
-      artwork: [{ src: data.image, sizes: '500x500', type: 'image/jpeg' }]
-    });
-    navigator.mediaSession.setActionHandler('play', togglePlay);
-    navigator.mediaSession.setActionHandler('pause', togglePlay);
-    navigator.mediaSession.setActionHandler('previoustrack', playPrevSong);
-    navigator.mediaSession.setActionHandler('nexttrack', playNextSong);
-    
-    // Explicitly unbind seek handlers to remove 10-second skip buttons
-    try {
+  try {
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: data.title,
+        artist: data.artist,
+        album: data.album || 'Single',
+        artwork: [{ src: data.image, sizes: '500x500', type: 'image/jpeg' }]
+      });
+      navigator.mediaSession.setActionHandler('play', togglePlay);
+      navigator.mediaSession.setActionHandler('pause', togglePlay);
+      navigator.mediaSession.setActionHandler('previoustrack', playPrevSong);
+      navigator.mediaSession.setActionHandler('nexttrack', playNextSong);
+      
+      // Remove 10 sec skip controls
       navigator.mediaSession.setActionHandler('seekbackward', null);
       navigator.mediaSession.setActionHandler('seekforward', null);
-    } catch(e) {}
-  }
+    }
+  } catch(e) {}
 }
 
 async function openTrack(pid) {
@@ -287,15 +286,15 @@ async function openTrack(pid) {
     const res = await fetch(`/api/details?pid=${encodeURIComponent(pid)}`);
     const data = await res.json();
     
-    // 🚨 AUTO-SKIP ERROR 🚨
+    // Sirf error show karenge, auto-skip hata diya loop rokne ke liye
     if(!data.success) {
-       showToast('Track unavailable. Skipping...');
-       setTimeout(() => playNextSong(), 1500);
+       showToast('Track unavailable.');
        return;
     }
 
     currentSongData = data;
     
+    // One-time auto queue generation for search
     if (isSearchContext) {
       fetch(`/api/recommend?lang=${data.language || 'hindi'}`)
         .then(r => r.json())
@@ -344,12 +343,11 @@ async function openTrack(pid) {
     saveToArchive(data);
     checkActionStates(data.pid);
   } catch (err) { 
-    showToast('Failed to load. Skipping...'); 
-    setTimeout(() => playNextSong(), 1500); 
+    showToast('Network Error.'); 
   }
 }
 
-// 🚨 SMART QUEUE REVERSE EXTENSION 🚨
+// 🚨 EXTEND QUEUE: Reverse Loop Logic 🚨
 window.extendQueue = async function() {
   if(hasExtendedQueue) {
     showToast('Queue limit reached.');
@@ -359,7 +357,7 @@ window.extendQueue = async function() {
   if(btn) { btn.disabled = true; btn.textContent = 'SCANNING...'; }
   
   let success = false;
-  // Reverse loop checks from last song backwards
+  // Last song se start karke pichhe jayega valid recommendations nikalne ke liye
   for (let i = currentContextList.length - 1; i >= 0; i--) {
      const track = currentContextList[i];
      try {
@@ -372,19 +370,22 @@ window.extendQueue = async function() {
          currentContextList.push(...unique);
          renderPlayerQueue();
          success = true;
-         hasExtendedQueue = true; // Lock 
+         hasExtendedQueue = true; // Maximum one time extension allowed
          break;
        }
      } catch(e) { continue; }
   }
   
-  if(!success && btn) { btn.textContent = 'NO MATCHES'; btn.disabled = true; }
+  if(!success) { 
+      if(btn) { btn.textContent = 'NO MATCHES'; btn.disabled = true; }
+      showToast('No more related tracks found.');
+  }
 };
 
 window.saveCurrentQueueToLibrary = function() {
   if(!currentSongData) return;
   const colInfo = {
-    id: currentSongData.pid, // using current song pid as unique key for the playlist
+    id: currentSongData.pid,
     type: 'playlist',
     title: `${currentSongData.title} Mix`,
     img: currentSongData.image
@@ -470,10 +471,10 @@ audio.addEventListener('play', () => setPlayState(true));
 audio.addEventListener('pause', () => setPlayState(false));
 audio.addEventListener('ended', () => { setPlayState(false); playNextSong(); });
 
-// 🚨 AUDIO ERROR AUTO-SKIP 🚨
-audio.addEventListener('error', () => {
-  showToast('Stream lost. Skipping...');
-  setTimeout(() => playNextSong(), 1500);
+// Auto skip hata diya, ab stream crash hone par loop nahi hoga
+audio.addEventListener('error', () => { 
+  showToast('Audio stream error.'); 
+  setPlayState(false);
 });
 
 const seek = document.getElementById('seek');
