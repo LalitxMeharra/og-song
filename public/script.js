@@ -6,8 +6,7 @@ let currentTrackIndex = -1;
 let currentArtistToken = '';
 let currentArtistPage = 0;
 let isSearchContext = false;
-let currentCollectionInfo = null; 
-let hasExtendedQueue = false;
+let currentCollectionInfo = null; // For saving playlists/artists
 
 const Router = {
   init() {
@@ -38,10 +37,13 @@ const Router = {
   handleBack(e) {
     if (document.getElementById('fullPlayer').classList.contains('open')) {
       document.getElementById('fullPlayer').classList.remove('open');
-    } else if (e.state && e.state.view) {
+    } 
+    else if (e.state && e.state.view) {
       this.switchUI(e.state.view);
-    } else if (e.state && e.state.step === 'trap') {
-      Router.navigate('homeView');
+    } 
+    else if (e.state && e.state.step === 'trap') {
+      document.getElementById('exitModal').style.display = 'flex';
+      history.pushState({ step: 'home', view: 'homeView' }, '');
     }
   }
 };
@@ -61,7 +63,7 @@ function showToast(msg) {
   document.getElementById('toastMsg').textContent = msg;
   t.classList.add('show');
   clearTimeout(t._h);
-  t._h = setTimeout(() => t.classList.remove('show'), 2000);
+  t._h = setTimeout(() => t.classList.remove('show'), 2400);
 }
 function fmtTime(s) {
   if (!isFinite(s)) return '0:00';
@@ -77,6 +79,9 @@ document.querySelectorAll('.nav-item').forEach(item => {
     if(targetId === 'playlistView') { renderLibrary(); renderSavedCollections(); }
   });
 });
+
+document.getElementById('btnExitNo').addEventListener('click', () => document.getElementById('exitModal').style.display = 'none');
+document.getElementById('btnExitYes').addEventListener('click', () => { document.getElementById('exitModal').style.display = 'none'; window.history.go(-2); });
 
 async function loadHomeData() {
   try {
@@ -96,10 +101,11 @@ async function loadHomeData() {
 }
 
 window.handleCardClick = async function(id, type, title, img) {
-  isSearchContext = false;
   if (type === 'song') {
+    isSearchContext = false;
     openTrack(id);
   } else if (type === 'artist') {
+    isSearchContext = false;
     currentArtistToken = id;
     currentArtistPage = 0;
     currentCollectionInfo = { id, type, title, img };
@@ -118,6 +124,7 @@ window.handleCardClick = async function(id, type, title, img) {
       document.getElementById('collectionList').innerHTML = `<div style="text-align:center; padding: 20px; color:var(--crimson);">Error loading artist.</div>`;
     }
   } else {
+    isSearchContext = false;
     currentCollectionInfo = { id, type, title, img };
     setupCollectionHeader(title, img, 'ALBUM / PLAYLIST');
 
@@ -149,23 +156,21 @@ function renderCollectionList(songs, isArtist) {
   let html = songs.map((r, index) => {
     const isPlaying = currentSongData && r.pid === currentSongData.pid;
     return `
-    <div class="result-card ${isPlaying ? 'active-track' : ''}" onclick="openTrack('${r.pid}')">
-      <img src="${r.image}" class="track-thumb">
-      <div class="result-info">
+    <div class="result-card ${isPlaying ? 'active-track' : ''}" onclick="openTrack('${r.pid}')" style="border:none; border-bottom:1px dashed var(--grid-line); box-shadow:none; padding: 12px 4px; background: transparent; border-radius: 0;">
+      <img src="${r.image}" class="result-img">
+      <div class="result-info" style="padding-left: 10px;">
         <div class="result-title">${r.title}</div>
         <div class="result-meta">${r.artist}</div>
       </div>
-      <div class="btn-play-badge">
-        ${isPlaying ? `<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>` : `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`}
-      </div>
+      ${isPlaying ? `<div class="playing-icon" style="color:var(--crimson);">▶</div>` : `<div style="font-size:16px; color:var(--text-muted);">⚬</div>`}
     </div>
   `}).join('');
 
   if(isArtist) {
     html += `
-    <div style="display:flex; justify-content:space-between; padding: 20px 0; gap:10px;">
-      <button class="btn-page" onclick="changeArtistPage(-1)" id="prevPageBtn" ${currentArtistPage === 0 ? 'disabled' : ''}>← PREV</button>
-      <div style="font-size:12px; font-weight:bold; align-self:center;">PAGE ${currentArtistPage + 1}</div>
+    <div style="display:flex; justify-content:space-between; padding: 20px 10px; gap:10px;">
+      <button class="btn-page" onclick="changeArtistPage(-1)" id="prevPageBtn" ${currentArtistPage === 0 ? 'disabled style="opacity:0.5"' : ''}>← PREV</button>
+      <div style="font-size:14px; font-weight:bold; align-self:center;">PAGE ${currentArtistPage + 1}</div>
       <button class="btn-page" onclick="changeArtistPage(1)" id="nextPageBtn">NEXT →</button>
     </div>`;
   }
@@ -185,7 +190,8 @@ window.changeArtistPage = async function(direction) {
       currentContextList = data.topSongs; 
       renderCollectionList(currentContextList, true);
     } else {
-      document.getElementById('collectionList').innerHTML = `<div style="text-align:center; padding: 20px;">No more tracks.</div><button class="btn-page" onclick="changeArtistPage(-1)">← GO BACK</button>`;
+      document.getElementById('collectionList').innerHTML = `<div style="text-align:center; padding: 20px;">No more tracks on this page.</div>
+      <button class="btn-page" onclick="changeArtistPage(-1)">← GO BACK</button>`;
     }
   } catch(err) {
     document.getElementById('collectionList').innerHTML = `<div style="text-align:center; padding: 20px; color:var(--crimson);">Error loading page.</div>`;
@@ -210,108 +216,75 @@ qInput.addEventListener('input', (e) => {
   searchTimer = setTimeout(() => executeLiveSearch(query), 500); 
 });
 
-let globalSearchResults = []; // Keep search results separate until clicked
 async function executeLiveSearch(query) {
   try {
+    isSearchContext = true; // Signals auto-play to fetch smart queue
     const res = await fetch(`/api/search?q=${encodeURIComponent(query)}&_t=${Date.now()}`);
     const data = await res.json();
     searchSpinner.style.display = 'none';
 
-    globalSearchResults = data.results || [];
-    if(!globalSearchResults.length) {
+    const results = data.results || [];
+    if(!results.length) {
       document.getElementById('topMatchContainer').style.display = 'none';
       document.getElementById('resultsList').innerHTML = `<div style="padding:20px;text-align:center;">No results found.</div>`;
       return;
     }
 
-    const top = globalSearchResults[0];
+    currentContextList = results; 
+
+    const top = results[0];
     document.getElementById('topMatchContainer').style.display = 'block';
     document.getElementById('topMatchCard').innerHTML = `
-      <div class="top-match-card" onclick="playFromSearch('${top.pid}')">
+      <div class="top-match-card" onclick="openTrack('${top.pid}')">
         <img src="${top.image}">
         <div class="info">
           <div class="title">${top.title}</div>
           <div class="meta">${top.artist}</div>
         </div>
-        <div class="btn-play-badge" style="color:var(--bg-paper);"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
+        <div class="top-match-badge">PLAY</div>
       </div>
     `;
 
     document.getElementById('otherResultsTitle').style.display = 'block';
-    document.getElementById('resultsList').innerHTML = globalSearchResults.slice(1).map(r => `
-      <div class="result-card" onclick="playFromSearch('${r.pid}')">
+    document.getElementById('resultsList').innerHTML = results.slice(1).map((r, i) => `
+      <div class="result-card" onclick="openTrack('${r.pid}')">
         <img class="result-img" src="${r.image}" alt="Cover">
         <div class="result-info"><div class="result-title">${r.title}</div><div class="result-meta">${r.artist}</div></div>
-        <div class="btn-play-badge"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
+        <button class="btn-play-badge">PLAY</button>
       </div>
     `).join('');
   } catch (err) { searchSpinner.style.display = 'none'; }
 }
 
-// 🚨 SMART QUEUE RESET FOR SEARCH 🚨
-window.playFromSearch = async function(pid) {
-  const song = globalSearchResults.find(s => s.pid === pid);
-  if(!song) return;
-  
-  isSearchContext = true;
-  hasExtendedQueue = false;
-  // Initialize queue with JUST the clicked song first to break old loops
-  currentContextList = [song];
-  currentTrackIndex = 0;
-  
-  openTrack(pid); // Play it immediately
-
-  // Then silently fetch recommendations based on this specific song's language
-  fetch(`/api/recommend?lang=${song.language || 'hindi'}`)
-    .then(r => r.json())
-    .then(radioSongs => {
-      if (radioSongs && radioSongs.length > 0) {
-        // Prevent duplicates
-        const unique = radioSongs.filter(s => s.pid !== pid);
-        currentContextList = [song, ...unique];
-        renderPlayerQueue(); 
-      }
-    }).catch(() => {});
-};
-
 const audio = document.getElementById('audio');
-
-// 🚨 MEDIA SESSION FOR NOTIFICATION CONTROLS 🚨
-function setupMediaSession(data) {
-  if ('mediaSession' in navigator) {
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: data.title,
-      artist: data.artist,
-      album: data.album || 'Single',
-      artwork: [{ src: data.image, sizes: '500x500', type: 'image/jpeg' }]
-    });
-    navigator.mediaSession.setActionHandler('play', () => togglePlay());
-    navigator.mediaSession.setActionHandler('pause', () => togglePlay());
-    navigator.mediaSession.setActionHandler('previoustrack', () => playPrevSong());
-    navigator.mediaSession.setActionHandler('nexttrack', () => playNextSong());
-  }
-}
-
-async function openTrack(pid) {
-  showToast('Connecting to stream...');
+async function legacyOpenTrack(pid) {
+  showToast('Decrypting HQ Stream...');
   try {
     const res = await fetch(`/api/details?pid=${encodeURIComponent(pid)}`);
     const data = await res.json();
-    
-    // 🚨 AUTO-SKIP FAILING TRACKS 🚨
-    if(!data.success) {
-       showToast('Track unavailable. Skipping...');
-       setTimeout(() => playNextSong(), 1000);
-       return;
-    }
+    if(!data.success) throw new Error(data.error || 'Playback failed');
 
     currentSongData = data;
     
-    if (!isSearchContext) {
+    // 🚨 SMART QUEUE GENERATION (Runs ONCE per search click)
+    if (isSearchContext) {
+      isSearchContext = false; // Turn off so we don't fetch on 'next track'
+      fetch(`/api/recommend?lang=${data.language || 'hindi'}`)
+        .then(r => r.json())
+        .then(radioSongs => {
+          if (radioSongs && radioSongs.length > 0) {
+            currentContextList = [data, ...radioSongs.filter(s => s.pid !== data.pid)];
+            currentTrackIndex = 0;
+            queueExtendedOnce = false;
+            renderPlayerQueue(); 
+          }
+        }).catch(() => { });
+    } else {
       currentTrackIndex = currentContextList.findIndex(t => t.pid === pid);
+      renderPlayerQueue();
     }
-    renderPlayerQueue();
 
+    // Refresh collection view to show playing indicator if open
     if (document.getElementById('collectionView').classList.contains('active')) {
       renderCollectionList(currentContextList, currentArtistToken !== '');
     }
@@ -338,70 +311,14 @@ async function openTrack(pid) {
     audio.volume = document.getElementById('vol').value / 100;
     audio.playbackRate = parseFloat(document.getElementById('speed').value);
     
-    setupMediaSession(data);
-
     audio.play().then(() => setPlayState(true)).catch(() => { setPlayState(false); showToast('Tap play to start'); });
 
     saveToArchive(data);
     checkActionStates(data.pid);
-  } catch (err) { 
-    showToast('Failed to load. Skipping...'); 
-    setTimeout(() => playNextSong(), 1000); 
-  }
+  } catch (err) { showToast('Track Error: ' + err.message); }
 }
 
-// 🚨 SMART FALLBACK QUEUE EXTENSION (Executes max 1 time per user click)
-window.extendQueue = async function() {
-  if(hasExtendedQueue) {
-    showToast('Queue already extended limit.');
-    return;
-  }
-  const btn = document.getElementById('extQueueBtn');
-  if(btn) { btn.disabled = true; btn.textContent = 'SCANNING...'; }
-  
-  let success = false;
-  // Loop backwards to find a track that yields recommendations
-  for (let i = currentContextList.length - 1; i >= 0; i--) {
-     const track = currentContextList[i];
-     try {
-       const res = await fetch(`/api/recommend?lang=${track.language || 'hindi'}`);
-       const newSongs = await res.json();
-       const existingPids = new Set(currentContextList.map(s => s.pid));
-       const unique = newSongs.filter(s => !existingPids.has(s.pid));
-       
-       if(unique.length > 0) {
-         currentContextList.push(...unique);
-         renderPlayerQueue();
-         success = true;
-         hasExtendedQueue = true; // Lock further extensions
-         if(btn) btn.style.display = 'none'; // Hide button after success
-         break;
-       }
-     } catch(e) { continue; }
-  }
-  
-  if(!success && btn) { btn.textContent = 'END OF VAULT'; btn.disabled = true; }
-};
-
-window.saveCurrentQueueToLibrary = function() {
-  if(!currentSongData) return;
-  const colInfo = {
-    id: currentSongData.pid,
-    type: 'playlist',
-    title: `${currentSongData.title} Radio`,
-    img: currentSongData.image
-  };
-  let cols = JSON.parse(localStorage.getItem('og_collections') || '[]');
-  if(!cols.find(c => c.id === colInfo.id)) {
-    cols.unshift(colInfo);
-    localStorage.setItem('og_collections', JSON.stringify(cols));
-    showToast('Queue saved to Library!');
-    renderSavedCollections();
-  } else {
-    showToast('Already in Library');
-  }
-};
-
+// 🚨 IN-PLAYER QUEUE RENDER
 function renderPlayerQueue() {
   const queueEl = document.getElementById('playerQueueList');
   if(!queueEl) return;
@@ -410,21 +327,44 @@ function renderPlayerQueue() {
   let html = currentContextList.map((r, index) => {
     const isPlaying = index === currentTrackIndex;
     return `
-    <div class="result-card ${isPlaying ? 'active-track' : ''}" onclick="openTrack('${r.pid}')" style="border:none; border-bottom:1px dashed var(--grid-line); box-shadow:none; padding: 8px 4px; background: transparent;">
-      <img src="${r.image}" class="track-thumb" style="width:36px; height:36px;">
-      <div class="result-info">
-        <div class="result-title">${r.title}</div>
+    <div class="result-card ${isPlaying ? 'active-track' : ''}" onclick="openTrack('${r.pid}')" style="border:none; border-bottom:1px dashed var(--grid-line); box-shadow:none; padding: 8px 4px; background: transparent; border-radius: 0;">
+      <img src="${r.image}" class="result-img" style="width:36px; height:36px;">
+      <div class="result-info" style="padding-left: 10px;">
+        <div class="result-title" style="${isPlaying ? 'color:var(--crimson);' : ''}">${r.title}</div>
         <div class="result-meta">${r.artist}</div>
       </div>
       ${isPlaying ? `<div class="playing-icon" style="color:var(--crimson);">▶</div>` : ``}
     </div>
   `}).join('');
 
-  if(!hasExtendedQueue) {
-    html += `<div style="text-align:center; padding: 12px;"><button class="btn-page" onclick="extendQueue()" id="extQueueBtn" style="padding:10px; font-size:12px;">LOAD MORE RELATED ↓</button></div>`;
-  }
+  html += `<div style="text-align:center; padding: 12px;"><button class="btn-page" onclick="extendQueue()" id="extQueueBtn" style="padding:10px; font-size:12px;">LOAD MORE RELATED ↓</button></div>`;
+  
   queueEl.innerHTML = html;
 }
+
+// 🚨 EXTEND QUEUE BUTTON LOGIC
+window.extendQueue = async function() {
+  const btn = document.getElementById('extQueueBtn');
+  if(btn) { btn.disabled = true; btn.textContent = 'LOADING...'; }
+  
+  // Base recommendation off the last track in current queue
+  const lastTrack = currentContextList[currentContextList.length - 1];
+  if(!lastTrack) return;
+
+  try {
+    const res = await fetch(`/api/recommend?lang=${lastTrack.language || 'hindi'}`);
+    const newSongs = await res.json();
+    
+    // Filter Duplicates
+    const existingPids = new Set(currentContextList.map(s => s.pid));
+    const unique = newSongs.filter(s => !existingPids.has(s.pid));
+    
+    currentContextList.push(...unique);
+    renderPlayerQueue();
+  } catch(e) {
+    if(btn) { btn.textContent = 'ERROR'; btn.disabled = false; }
+  }
+};
 
 document.getElementById('closePlayerBtn').addEventListener('click', () => history.back());
 
@@ -441,43 +381,33 @@ function togglePlay() {
 }
 
 function setPlayState(isPlaying) {
-  const playIcon = `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
-  const pauseIcon = `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
-  
-  document.getElementById('playBtn').innerHTML = isPlaying ? pauseIcon : playIcon;
-  document.getElementById('mpPlayBtn').innerHTML = isPlaying ? pauseIcon.replace('24','16').replace('24','16') : playIcon.replace('24','16').replace('24','16');
+  document.getElementById('playBtn').textContent = isPlaying ? '❚❚' : '▶';
+  document.getElementById('mpPlayBtn').textContent = isPlaying ? '❚❚' : '▶';
   document.getElementById('discCover').classList.toggle('playing', isPlaying);
 }
 
-function playPrevSong() {
+document.getElementById('prevTrackBtn').addEventListener('click', () => {
   if (currentContextList.length > 0 && currentTrackIndex > 0) {
     openTrack(currentContextList[currentTrackIndex - 1].pid);
   } else {
     audio.currentTime = 0;
-    showToast('Restarting track');
+    showToast('Playing from start');
   }
-}
+});
 
-function playNextSong() {
-  if (currentContextList.length > 0 && currentTrackIndex >= 0 && currentTrackIndex < currentContextList.length - 1) {
-    openTrack(currentContextList[currentTrackIndex + 1].pid);
-  } else {
-    showToast('Vault Finished');
-  }
-}
-
-document.getElementById('prevTrackBtn').addEventListener('click', playPrevSong);
-document.getElementById('nextTrackBtn').addEventListener('click', playNextSong);
+document.getElementById('nextTrackBtn').addEventListener('click', () => playNextSong());
 
 audio.addEventListener('play', () => setPlayState(true));
 audio.addEventListener('pause', () => setPlayState(false));
 audio.addEventListener('ended', () => { setPlayState(false); playNextSong(); });
 
-// 🚨 AUDIO ERROR AUTO-SKIP 🚨
-audio.addEventListener('error', () => {
-  showToast('Stream lost. Skipping...');
-  setTimeout(() => playNextSong(), 1000);
-});
+function playNextSong() {
+  if (currentContextList.length > 0 && currentTrackIndex >= 0 && currentTrackIndex < currentContextList.length - 1) {
+    openTrack(currentContextList[currentTrackIndex + 1].pid);
+  } else {
+    showToast('Playlist Finished');
+  }
+}
 
 const seek = document.getElementById('seek');
 const curTime = document.getElementById('curTime');
@@ -501,37 +431,33 @@ function renderArchive() {
   const archive = JSON.parse(localStorage.getItem('og_archive') || '[]');
   const list = document.getElementById('archiveList');
   if(!archive.length) { list.innerHTML = `<div style="padding:24px;text-align:center;border:2px dashed var(--border-dark);">No playback history.</div>`; return; }
-  list.innerHTML = archive.map(r => `<div class="result-card" onclick="isSearchContext=false; currentContextList=JSON.parse(localStorage.getItem('og_archive')||'[]'); openTrack('${r.pid}')">
-    <img class="track-thumb" src="${r.image}" alt="Cover">
-    <div class="result-info"><div class="result-title">${r.title}</div><div class="result-meta">${r.artist}</div></div>
-    <div class="btn-play-badge"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
-  </div>`).join('');
+  list.innerHTML = archive.map(r => `<div class="result-card" onclick="isSearchContext=false; currentContextList=JSON.parse(localStorage.getItem('og_archive')||'[]'); openTrack('${r.pid}')"><img class="result-img" src="${r.image}" alt="Cover"><div class="result-info"><div class="result-title">${r.title}</div><div class="result-meta">${r.artist}</div></div><button class="btn-play-badge">PLAY</button></div>`).join('');
 }
 
-function toggleStorage(key, btnElem, activeClass, inactiveClass, addMsg, removeMsg) {
+function toggleStorage(key, btnElem, activeIcon, inactiveIcon, addMsg, removeMsg) {
   if(!currentSongData) return;
   let items = JSON.parse(localStorage.getItem(key) || '[]');
   if(items.find(s => s.pid === currentSongData.pid)) {
     items = items.filter(s => s.pid !== currentSongData.pid);
-    btnElem.classList.remove('active');
+    btnElem.textContent = inactiveIcon; btnElem.classList.remove('active');
     showToast(removeMsg);
   } else {
     items.unshift(currentSongData);
-    btnElem.classList.add('active');
+    btnElem.textContent = activeIcon; btnElem.classList.add('active');
     showToast(addMsg);
   }
   localStorage.setItem(key, JSON.stringify(items));
 }
 
-document.getElementById('favBtn').addEventListener('click', () => { toggleStorage('og_favorites', document.getElementById('favBtn'), 'active', '', 'Saved to Favorites', 'Removed from Favorites'); renderFavorites(); });
-document.getElementById('libBtn').addEventListener('click', () => { toggleStorage('og_library', document.getElementById('libBtn'), 'active', '', 'Added to Library', 'Removed from Library'); renderLibrary(); });
+document.getElementById('favBtn').addEventListener('click', () => { toggleStorage('og_favorites', document.getElementById('favBtn'), '♥', '♡', 'Added to Favorites ♥', 'Removed from Favorites'); renderFavorites(); });
+document.getElementById('libBtn').addEventListener('click', () => { toggleStorage('og_library', document.getElementById('libBtn'), '✓', '+', 'Added to Library ✓', 'Removed from Library'); renderLibrary(); });
 
 function checkActionStates(pid) {
   const favs = JSON.parse(localStorage.getItem('og_favorites') || '[]');
   const libs = JSON.parse(localStorage.getItem('og_library') || '[]');
   const fb = document.getElementById('favBtn'); const lb = document.getElementById('libBtn');
-  if(favs.find(s => s.pid === pid)) { fb.classList.add('active'); } else { fb.classList.remove('active'); }
-  if(libs.find(s => s.pid === pid)) { lb.classList.add('active'); } else { lb.classList.remove('active'); }
+  if(favs.find(s => s.pid === pid)) { fb.textContent = '♥'; fb.classList.add('active'); } else { fb.textContent = '♡'; fb.classList.remove('active'); }
+  if(libs.find(s => s.pid === pid)) { lb.textContent = '✓'; lb.classList.add('active'); } else { lb.textContent = '+'; lb.classList.remove('active'); }
 }
 
 function renderFavorites() {
@@ -541,6 +467,7 @@ function renderFavorites() {
   grid.innerHTML = favs.map(i => `<div class="grid-card" onclick="isSearchContext=false; currentContextList=JSON.parse(localStorage.getItem('og_favorites')||'[]'); openTrack('${i.pid}')"><img src="${i.image}" alt="Art"><div class="grid-title">${i.title}</div></div>`).join('');
 }
 
+// 🚨 LIBRARY TABS LOGIC
 window.switchLibTab = function(tab) {
   document.querySelectorAll('.lib-tab').forEach(t => t.classList.remove('active'));
   if(tab === 'songs') {
@@ -558,13 +485,10 @@ function renderLibrary() {
   const libs = JSON.parse(localStorage.getItem('og_library') || '[]');
   const list = document.getElementById('playlistGrid');
   if(!libs.length) { list.innerHTML = `<div style="padding:24px;text-align:center;border:2px dashed var(--border-dark);">No saved songs.</div>`; return; }
-  list.innerHTML = libs.map(r => `<div class="result-card" onclick="isSearchContext=false; currentContextList=JSON.parse(localStorage.getItem('og_library')||'[]'); openTrack('${r.pid}')">
-    <img class="track-thumb" src="${r.image}" alt="Cover">
-    <div class="result-info"><div class="result-title">${r.title}</div><div class="result-meta">${r.artist}</div></div>
-    <div class="btn-play-badge"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
-  </div>`).join('');
+  list.innerHTML = libs.map(r => `<div class="result-card" onclick="isSearchContext=false; currentContextList=JSON.parse(localStorage.getItem('og_library')||'[]'); openTrack('${r.pid}')"><img class="result-img" src="${r.image}" alt="Cover"><div class="result-info"><div class="result-title">${r.title}</div><div class="result-meta">${r.artist}</div></div><button class="btn-play-badge">PLAY</button></div>`).join('');
 }
 
+// 🚨 SAVE PLAYLISTS / COLLECTIONS LOGIC
 window.toggleCollectionSave = function() {
   if(!currentCollectionInfo) return;
   let cols = JSON.parse(localStorage.getItem('og_collections') || '[]');
@@ -601,12 +525,123 @@ function renderSavedCollections() {
   
   grid.innerHTML = cols.map(c => `
     <div class="result-card" onclick="handleCardClick('${c.id}', '${c.type}', '${c.title.replace(/'/g, "\\'")}', '${c.img}')">
-      <img class="track-thumb" src="${c.img}" alt="Cover">
+      <img class="result-img" src="${c.img}" alt="Cover">
       <div class="result-info"><div class="result-title">${c.title}</div><div class="result-meta">${c.type.toUpperCase()}</div></div>
-      <div class="btn-play-badge"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
+      <button class="btn-play-badge">OPEN</button>
     </div>
   `).join('');
 }
 
 document.getElementById('openDlModal').addEventListener('click', () => document.getElementById('dlModal').style.display = 'flex');
 document.getElementById('closeDlModal').addEventListener('click', () => document.getElementById('dlModal').style.display = 'none');
+// findxmusic final polish: resilient playback + premium Media Session
+function refreshPlayingUI() {
+  renderPlayerQueue();
+  if (document.getElementById('collectionView').classList.contains('active')) renderCollectionList(currentContextList, currentArtistToken !== '');
+}
+
+function setupMediaSession(data) {
+  if (!('mediaSession' in navigator) || !data) return;
+  try {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: data.title || 'findxmusic',
+      artist: data.artist || '',
+      album: data.album || 'findxmusic',
+      artwork: data.image ? [{ src: data.image, sizes: '512x512', type: 'image/jpeg' }] : []
+    });
+    navigator.mediaSession.setActionHandler('play', () => audio.play());
+    navigator.mediaSession.setActionHandler('pause', () => audio.pause());
+    navigator.mediaSession.setActionHandler('previoustrack', () => document.getElementById('prevTrackBtn').click());
+    navigator.mediaSession.setActionHandler('nexttrack', () => playNextSong());
+    ['seekbackward','seekforward','seekto','stop'].forEach(a => { try { navigator.mediaSession.setActionHandler(a, null); } catch(_){} });
+  } catch (_) {}
+}
+
+async function openTrackResilient(pid, opts = {}) {
+  const attempted = opts.attempted || new Set();
+  attempted.add(String(pid));
+  showToast(opts.silent ? 'Skipping unavailable track…' : 'Preparing stream…');
+  try {
+    const res = await fetch(`/api/details?pid=${encodeURIComponent(pid)}`);
+    const data = await res.json();
+    if (!res.ok || !data.success || !(data.links && (data.links['320'] || data.links['160'] || data.links['96']))) {
+      throw new Error(data.error || 'Stream unavailable');
+    }
+    currentSongData = data;
+    let idx = currentContextList.findIndex(t => String(t.pid) === String(pid));
+    if (idx < 0) { currentContextList.unshift(data); idx = 0; }
+    currentTrackIndex = idx;
+    document.getElementById('pTitle').textContent = data.title;
+    document.getElementById('pArtist').textContent = data.artist;
+    document.getElementById('pAlbum').textContent = data.album || 'Single';
+    document.getElementById('playerCover').src = data.image;
+    document.getElementById('mpTitle').textContent = data.title;
+    document.getElementById('mpArtist').textContent = data.artist;
+    document.getElementById('mpCover').src = data.image;
+    document.getElementById('miniPlayer').style.display = 'flex';
+    const safeTitle = (data.title || 'song').replace(/[^\w\s.-]/g, '').trim() || 'song';
+    document.getElementById('btn320').href = `/api/download?url=${encodeURIComponent(data.links['320'] || '')}&filename=${safeTitle}&quality=320kbps`;
+    document.getElementById('btn160').href = `/api/download?url=${encodeURIComponent(data.links['160'] || '')}&filename=${safeTitle}&quality=160kbps`;
+    document.getElementById('btn96').href = `/api/download?url=${encodeURIComponent(data.links['96'] || '')}&filename=${safeTitle}&quality=96kbps`;
+    audio.src = data.links['320'] || data.links['160'] || data.links['96'];
+    audio.currentTime = 0;
+    audio.volume = document.getElementById('vol').value / 100;
+    audio.playbackRate = parseFloat(document.getElementById('speed').value);
+    setupMediaSession(data);
+    refreshPlayingUI();
+    Router.navigate('fullPlayer', true);
+    await audio.play().catch(() => { setPlayState(false); showToast('Tap play to start'); });
+    saveToArchive(data); checkActionStates(data.pid); refreshPlayingUI();
+    return true;
+  } catch (err) {
+    const start = currentContextList.findIndex(t => String(t.pid) === String(pid));
+    const candidates = currentContextList.slice(Math.max(0, start + 1)).concat(currentContextList.slice(0, Math.max(0, start))).filter(t => t && t.pid && !attempted.has(String(t.pid)));
+    if (candidates.length) {
+      showToast('Track unavailable — playing the next one');
+      return openTrackResilient(candidates[0].pid, { attempted, silent: true });
+    }
+    showToast('This track is unavailable right now');
+    setPlayState(false); refreshPlayingUI();
+    return false;
+  }
+}
+// Replace legacy opener globally after declaration.
+window.openTrack = (pid) => openTrackResilient(pid);
+
+// Recommendation extension: only one explicit extension, with fallback through prior queue tracks.
+let queueExtendedOnce = false;
+window.extendQueue = async function() {
+  if (queueExtendedOnce) { showToast('Related queue already extended'); return; }
+  const btn = document.getElementById('extQueueBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'BUILDING MIX…'; }
+  const existing = new Set(currentContextList.map(s => String(s.pid)));
+  const bases = [...currentContextList].reverse();
+  try {
+    for (const base of bases) {
+      const res = await fetch(`/api/recommend?lang=${encodeURIComponent(base.language || currentSongData?.language || 'hindi')}`);
+      const songs = await res.json();
+      const unique = (Array.isArray(songs) ? songs : []).filter(s => s && s.pid && !existing.has(String(s.pid)));
+      if (unique.length) {
+        currentContextList.push(...unique);
+        queueExtendedOnce = true;
+        renderPlayerQueue();
+        showToast(`Added ${unique.length} related tracks`);
+        return;
+      }
+    }
+    showToast('No more related tracks found');
+    if (btn) { btn.disabled = false; btn.textContent = 'TRY RELATED MIX'; }
+  } catch (_) { if (btn) { btn.disabled = false; btn.textContent = 'TRY AGAIN'; } }
+};
+
+// Reset the one-time extension whenever a fresh search creates a new radio queue.
+const _renderQueueOriginal = renderPlayerQueue;
+function renderPlayerQueue() {
+  const queueEl = document.getElementById('playerQueueList');
+  if (!queueEl) return;
+  if (currentContextList.length <= 1) { queueEl.innerHTML = '<div class="queue-empty">Your next tracks will appear here.</div>'; return; }
+  queueEl.innerHTML = currentContextList.map((r, index) => {
+    const active = index === currentTrackIndex;
+    return `<div class="result-card queue-track ${active ? 'active-track' : ''}" onclick="openTrack('${r.pid}')"><img src="${r.image || ''}" class="result-img"><div class="result-info"><div class="result-title">${escapeHtml(r.title || 'Unknown')}</div><div class="result-meta">${escapeHtml(r.artist || '')}</div></div><div class="track-state">${active ? '<span class="eq"><i></i><i></i><i></i></span>' : '<span>›</span>'}</div></div>`;
+  }).join('') + (queueExtendedOnce ? '<div class="queue-end">Related mix loaded</div>' : '<div class="queue-extend"><button class="btn-page" onclick="extendQueue()" id="extQueueBtn">EXPAND RELATED MIX</button></div>');
+}
