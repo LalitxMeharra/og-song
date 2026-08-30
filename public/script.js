@@ -257,6 +257,62 @@ async function executeLiveSearch(query) {
 }
 
 const audio = document.getElementById('audio');
+
+// 🚨 PREMIUM MEDIA SESSION INTEGRATION
+function setupPremiumMediaSession(songData) {
+  if ('mediaSession' in navigator) {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: songData.title || 'Unknown Track',
+      artist: songData.artist || 'Unknown Artist',
+      album: songData.album || 'OG-SONG DL Vault',
+      artwork: [
+        { src: songData.image, sizes: '96x96', type: 'image/jpeg' },
+        { src: songData.image, sizes: '128x128', type: 'image/jpeg' },
+        { src: songData.image, sizes: '256x256', type: 'image/jpeg' },
+        { src: songData.image.replace('150x150', '500x500'), sizes: '512x512', type: 'image/jpeg' } // HQ image for premium look
+      ]
+    });
+
+    navigator.mediaSession.setActionHandler('play', () => { audio.play(); setPlayState(true); });
+    navigator.mediaSession.setActionHandler('pause', () => { audio.pause(); setPlayState(false); });
+    
+    navigator.mediaSession.setActionHandler('previoustrack', () => {
+      if (currentContextList.length > 0 && currentTrackIndex > 0) {
+        openTrack(currentContextList[currentTrackIndex - 1].pid);
+      } else {
+        audio.currentTime = 0;
+        showToast('Playing from start');
+      }
+    });
+    
+    navigator.mediaSession.setActionHandler('nexttrack', () => playNextSong());
+
+    navigator.mediaSession.setActionHandler('seekto', (details) => {
+      if (details.fastSeek && ('fastSeek' in audio)) {
+        audio.fastSeek(details.seekTime);
+      } else {
+        audio.currentTime = details.seekTime;
+      }
+    });
+
+    // Remove 10s Skip Buttons
+    try { navigator.mediaSession.setActionHandler('seekbackward', null); } catch(e) {}
+    try { navigator.mediaSession.setActionHandler('seekforward', null); } catch(e) {}
+  }
+}
+
+function updateMediaSessionPosition() {
+  if ('mediaSession' in navigator && 'setPositionState' in navigator.mediaSession) {
+    if(isFinite(audio.duration) && isFinite(audio.currentTime) && isFinite(audio.playbackRate)) {
+      navigator.mediaSession.setPositionState({
+        duration: audio.duration,
+        playbackRate: audio.playbackRate,
+        position: audio.currentTime
+      });
+    }
+  }
+}
+
 async function openTrack(pid) {
   showToast('Decrypting HQ Stream...');
   try {
@@ -268,7 +324,7 @@ async function openTrack(pid) {
     
     // 🚨 SMART QUEUE GENERATION (Runs ONCE per search click)
     if (isSearchContext) {
-      isSearchContext = false; // Turn off so we don't fetch on 'next track'
+      isSearchContext = false; 
       fetch(`/api/recommend?lang=${data.language || 'hindi'}`)
         .then(r => r.json())
         .then(radioSongs => {
@@ -283,7 +339,6 @@ async function openTrack(pid) {
       renderPlayerQueue();
     }
 
-    // Refresh collection view to show playing indicator if open
     if (document.getElementById('collectionView').classList.contains('active')) {
       renderCollectionList(currentContextList, currentArtistToken !== '');
     }
@@ -297,6 +352,9 @@ async function openTrack(pid) {
     document.getElementById('mpArtist').textContent = data.artist;
     document.getElementById('mpCover').src = data.image;
     document.getElementById('miniPlayer').style.display = 'flex';
+
+    // TRIGGER PREMIUM MEDIA SESSION
+    setupPremiumMediaSession(data);
 
     Router.navigate('fullPlayer', true);
 
@@ -346,7 +404,6 @@ window.extendQueue = async function() {
   const btn = document.getElementById('extQueueBtn');
   if(btn) { btn.disabled = true; btn.textContent = 'LOADING...'; }
   
-  // Base recommendation off the last track in current queue
   const lastTrack = currentContextList[currentContextList.length - 1];
   if(!lastTrack) return;
 
@@ -354,7 +411,6 @@ window.extendQueue = async function() {
     const res = await fetch(`/api/recommend?lang=${lastTrack.language || 'hindi'}`);
     const newSongs = await res.json();
     
-    // Filter Duplicates
     const existingPids = new Set(currentContextList.map(s => s.pid));
     const unique = newSongs.filter(s => !existingPids.has(s.pid));
     
@@ -400,6 +456,27 @@ audio.addEventListener('play', () => setPlayState(true));
 audio.addEventListener('pause', () => setPlayState(false));
 audio.addEventListener('ended', () => { setPlayState(false); playNextSong(); });
 
+const seek = document.getElementById('seek');
+const curTime = document.getElementById('curTime');
+const durTime = document.getElementById('durTime');
+
+audio.addEventListener('loadedmetadata', () => { 
+  durTime.textContent = fmtTime(audio.duration); 
+  seek.max = audio.duration || 100; 
+  updateMediaSessionPosition();
+});
+
+audio.addEventListener('timeupdate', () => { 
+  if (!seek._dragging) seek.value = audio.currentTime; 
+  curTime.textContent = fmtTime(audio.currentTime); 
+  updateMediaSessionPosition();
+});
+
+seek.addEventListener('input', () => { seek._dragging = true; curTime.textContent = fmtTime(seek.value); });
+seek.addEventListener('change', () => { audio.currentTime = parseFloat(seek.value); seek._dragging = false; });
+document.getElementById('vol').addEventListener('input', (e) => { audio.volume = e.target.value / 100; });
+document.getElementById('speed').addEventListener('change', (e) => { audio.playbackRate = parseFloat(e.target.value); });
+
 function playNextSong() {
   if (currentContextList.length > 0 && currentTrackIndex >= 0 && currentTrackIndex < currentContextList.length - 1) {
     openTrack(currentContextList[currentTrackIndex + 1].pid);
@@ -407,16 +484,6 @@ function playNextSong() {
     showToast('Playlist Finished');
   }
 }
-
-const seek = document.getElementById('seek');
-const curTime = document.getElementById('curTime');
-const durTime = document.getElementById('durTime');
-audio.addEventListener('loadedmetadata', () => { durTime.textContent = fmtTime(audio.duration); seek.max = audio.duration || 100; });
-audio.addEventListener('timeupdate', () => { if (!seek._dragging) seek.value = audio.currentTime; curTime.textContent = fmtTime(audio.currentTime); });
-seek.addEventListener('input', () => { seek._dragging = true; curTime.textContent = fmtTime(seek.value); });
-seek.addEventListener('change', () => { audio.currentTime = parseFloat(seek.value); seek._dragging = false; });
-document.getElementById('vol').addEventListener('input', (e) => { audio.volume = e.target.value / 100; });
-document.getElementById('speed').addEventListener('change', (e) => { audio.playbackRate = parseFloat(e.target.value); });
 
 function saveToArchive(song) {
   let archive = JSON.parse(localStorage.getItem('og_archive') || '[]');
