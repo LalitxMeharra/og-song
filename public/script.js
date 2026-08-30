@@ -260,7 +260,7 @@ async function executeLiveSearch(query) {
 const audio = document.getElementById('audio');
 
 // ==========================================
-// 🚨 NOTIFICATION BAR (CLAUDE FIXES)
+// 🚨 NOTIFICATION BAR (MEDIA SESSION)
 // ==========================================
 
 function initMediaSession() {
@@ -280,7 +280,6 @@ function initMediaSession() {
     ['seekforward', null]
   ];
 
-  // Try/Catch loop prevents an unsupported action from breaking the null assignments
   for (const [action, handler] of actions) {
     try {
       navigator.mediaSession.setActionHandler(action, handler);
@@ -297,7 +296,6 @@ function updateMediaSessionMetadata(songData) {
       artist: songData.artist || 'Unknown Artist',
       album: songData.album || 'OG-SONG DL Vault',
       artwork: [
-        // Using ONE 512x512 size prevents Android from lagging the notification rebuild
         { src: songData.image.replace('150x150', '500x500'), sizes: '512x512', type: 'image/jpeg' }
       ]
     });
@@ -306,7 +304,6 @@ function updateMediaSessionMetadata(songData) {
 
 function updateMediaSessionPosition() {
   if ('mediaSession' in navigator && 'setPositionState' in navigator.mediaSession) {
-    // Strict Finite checks prevent NaN crashes which cause 10s skip fallback
     if(Number.isFinite(audio.duration) && audio.duration > 0 && Number.isFinite(audio.currentTime)) {
       try {
         navigator.mediaSession.setPositionState({
@@ -444,9 +441,10 @@ function setPlayState(isPlaying) {
   document.getElementById('mpPlayBtn').textContent = isPlaying ? '❚❚' : '▶';
   document.getElementById('discCover').classList.toggle('playing', isPlaying);
   
-  // Explicitly tell the OS the state so it doesn't throttle taps
   if ('mediaSession' in navigator) {
     navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+    // Update position here so it stays synced when pausing/playing
+    updateMediaSessionPosition();
   }
 }
 
@@ -469,7 +467,6 @@ const seek = document.getElementById('seek');
 const curTime = document.getElementById('curTime');
 const durTime = document.getElementById('durTime');
 
-// SYNC SEEKBAR & TIME LIVE WITH NOTIFICATION
 audio.addEventListener('loadedmetadata', () => { 
   durTime.textContent = fmtTime(audio.duration); 
   seek.max = audio.duration || 100; 
@@ -479,13 +476,28 @@ audio.addEventListener('loadedmetadata', () => {
 audio.addEventListener('timeupdate', () => { 
   if (!seek._dragging) seek.value = audio.currentTime; 
   curTime.textContent = fmtTime(audio.currentTime); 
-  updateMediaSessionPosition();
+  // Omitted updateMediaSessionPosition() here to prevent freezing the notification seekbar
 });
 
-seek.addEventListener('input', () => { seek._dragging = true; curTime.textContent = fmtTime(seek.value); });
-seek.addEventListener('change', () => { audio.currentTime = parseFloat(seek.value); seek._dragging = false; });
-document.getElementById('vol').addEventListener('input', (e) => { audio.volume = e.target.value / 100; });
-document.getElementById('speed').addEventListener('change', (e) => { audio.playbackRate = parseFloat(e.target.value); });
+seek.addEventListener('input', () => { 
+  seek._dragging = true; 
+  curTime.textContent = fmtTime(seek.value); 
+});
+
+seek.addEventListener('change', () => { 
+  audio.currentTime = parseFloat(seek.value); 
+  seek._dragging = false; 
+  updateMediaSessionPosition(); 
+});
+
+document.getElementById('vol').addEventListener('input', (e) => { 
+  audio.volume = e.target.value / 100; 
+});
+
+document.getElementById('speed').addEventListener('change', (e) => { 
+  audio.playbackRate = parseFloat(e.target.value); 
+  updateMediaSessionPosition();
+});
 
 function playNextSong() {
   if (currentContextList.length > 0 && currentTrackIndex >= 0 && currentTrackIndex < currentContextList.length - 1) {
