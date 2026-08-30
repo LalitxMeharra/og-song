@@ -6,7 +6,7 @@ let currentTrackIndex = -1;
 let currentArtistToken = '';
 let currentArtistPage = 0;
 let isSearchContext = false;
-let currentCollectionInfo = null; // For saving playlists/artists
+let currentCollectionInfo = null; 
 
 const Router = {
   init() {
@@ -50,6 +50,7 @@ const Router = {
 
 window.onload = () => {
   Router.init();
+  initMediaSession(); // Initializes controls ONLY ONCE to prevent multi-click bugs
   loadHomeData();
   renderFavorites();
   renderLibrary();
@@ -218,7 +219,7 @@ qInput.addEventListener('input', (e) => {
 
 async function executeLiveSearch(query) {
   try {
-    isSearchContext = true; // Signals auto-play to fetch smart queue
+    isSearchContext = true; 
     const res = await fetch(`/api/search?q=${encodeURIComponent(query)}&_t=${Date.now()}`);
     const data = await res.json();
     searchSpinner.style.display = 'none';
@@ -258,60 +259,61 @@ async function executeLiveSearch(query) {
 
 const audio = document.getElementById('audio');
 
-// 🚨 PREMIUM MEDIA SESSION INTEGRATION
-function setupPremiumMediaSession(songData) {
-  if ('mediaSession' in navigator) {
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: songData.title || 'Unknown Track',
-      artist: songData.artist || 'Unknown Artist',
-      album: songData.album || 'OG-SONG DL Vault',
-      artwork: [
-        { src: songData.image, sizes: '96x96', type: 'image/jpeg' },
-        { src: songData.image, sizes: '128x128', type: 'image/jpeg' },
-        { src: songData.image, sizes: '256x256', type: 'image/jpeg' },
-        { src: songData.image.replace('150x150', '500x500'), sizes: '512x512', type: 'image/jpeg' } // HQ image for premium look
-      ]
-    });
+// ==========================================
+// 🚨 NOTIFICATION BAR (MEDIA SESSION) FIXES
+// ==========================================
 
+function initMediaSession() {
+  if ('mediaSession' in navigator) {
     navigator.mediaSession.setActionHandler('play', () => { audio.play(); setPlayState(true); });
     navigator.mediaSession.setActionHandler('pause', () => { audio.pause(); setPlayState(false); });
     
     navigator.mediaSession.setActionHandler('previoustrack', () => {
       if (currentContextList.length > 0 && currentTrackIndex > 0) {
         openTrack(currentContextList[currentTrackIndex - 1].pid);
-      } else {
-        audio.currentTime = 0;
-        showToast('Playing from start');
-      }
+      } else { audio.currentTime = 0; }
     });
     
     navigator.mediaSession.setActionHandler('nexttrack', () => playNextSong());
 
     navigator.mediaSession.setActionHandler('seekto', (details) => {
-      if (details.fastSeek && ('fastSeek' in audio)) {
-        audio.fastSeek(details.seekTime);
-      } else {
-        audio.currentTime = details.seekTime;
-      }
+      audio.currentTime = details.seekTime;
     });
 
-    // Remove 10s Skip Buttons
+    // Disable 10-second forward/backward skips strictly
     try { navigator.mediaSession.setActionHandler('seekbackward', null); } catch(e) {}
     try { navigator.mediaSession.setActionHandler('seekforward', null); } catch(e) {}
   }
 }
 
+function updateMediaSessionMetadata(songData) {
+  if ('mediaSession' in navigator) {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: songData.title || 'Unknown Track',
+      artist: songData.artist || 'Unknown Artist',
+      album: songData.album || 'OG-SONG DL Vault',
+      artwork: [
+        { src: songData.image.replace('150x150', '500x500'), sizes: '512x512', type: 'image/jpeg' }
+      ]
+    });
+  }
+}
+
 function updateMediaSessionPosition() {
   if ('mediaSession' in navigator && 'setPositionState' in navigator.mediaSession) {
-    if(isFinite(audio.duration) && isFinite(audio.currentTime) && isFinite(audio.playbackRate)) {
-      navigator.mediaSession.setPositionState({
-        duration: audio.duration,
-        playbackRate: audio.playbackRate,
-        position: audio.currentTime
-      });
+    if(audio.duration && isFinite(audio.duration) && audio.duration > 0) {
+      try {
+        navigator.mediaSession.setPositionState({
+          duration: audio.duration,
+          playbackRate: audio.playbackRate,
+          position: audio.currentTime
+        });
+      } catch(e) {} // Failsafe for fast skipping
     }
   }
 }
+
+// ==========================================
 
 async function openTrack(pid) {
   showToast('Decrypting HQ Stream...');
@@ -322,7 +324,6 @@ async function openTrack(pid) {
 
     currentSongData = data;
     
-    // 🚨 SMART QUEUE GENERATION (Runs ONCE per search click)
     if (isSearchContext) {
       isSearchContext = false; 
       fetch(`/api/recommend?lang=${data.language || 'hindi'}`)
@@ -353,8 +354,8 @@ async function openTrack(pid) {
     document.getElementById('mpCover').src = data.image;
     document.getElementById('miniPlayer').style.display = 'flex';
 
-    // TRIGGER PREMIUM MEDIA SESSION
-    setupPremiumMediaSession(data);
+    // UPDATE PREMIUM NOTIFICATION ART & TITLE
+    updateMediaSessionMetadata(data);
 
     Router.navigate('fullPlayer', true);
 
@@ -375,7 +376,6 @@ async function openTrack(pid) {
   } catch (err) { showToast('Track Error: ' + err.message); }
 }
 
-// 🚨 IN-PLAYER QUEUE RENDER
 function renderPlayerQueue() {
   const queueEl = document.getElementById('playerQueueList');
   if(!queueEl) return;
@@ -395,11 +395,9 @@ function renderPlayerQueue() {
   `}).join('');
 
   html += `<div style="text-align:center; padding: 12px;"><button class="btn-page" onclick="extendQueue()" id="extQueueBtn" style="padding:10px; font-size:12px;">LOAD MORE RELATED ↓</button></div>`;
-  
   queueEl.innerHTML = html;
 }
 
-// 🚨 EXTEND QUEUE BUTTON LOGIC
 window.extendQueue = async function() {
   const btn = document.getElementById('extQueueBtn');
   if(btn) { btn.disabled = true; btn.textContent = 'LOADING...'; }
@@ -460,6 +458,7 @@ const seek = document.getElementById('seek');
 const curTime = document.getElementById('curTime');
 const durTime = document.getElementById('durTime');
 
+// SYNC SEEKBAR & TIME LIVE WITH NOTIFICATION
 audio.addEventListener('loadedmetadata', () => { 
   durTime.textContent = fmtTime(audio.duration); 
   seek.max = audio.duration || 100; 
@@ -533,7 +532,6 @@ function renderFavorites() {
   grid.innerHTML = favs.map(i => `<div class="grid-card" onclick="isSearchContext=false; currentContextList=JSON.parse(localStorage.getItem('og_favorites')||'[]'); openTrack('${i.pid}')"><img src="${i.image}" alt="Art"><div class="grid-title">${i.title}</div></div>`).join('');
 }
 
-// 🚨 LIBRARY TABS LOGIC
 window.switchLibTab = function(tab) {
   document.querySelectorAll('.lib-tab').forEach(t => t.classList.remove('active'));
   if(tab === 'songs') {
@@ -554,7 +552,6 @@ function renderLibrary() {
   list.innerHTML = libs.map(r => `<div class="result-card" onclick="isSearchContext=false; currentContextList=JSON.parse(localStorage.getItem('og_library')||'[]'); openTrack('${r.pid}')"><img class="result-img" src="${r.image}" alt="Cover"><div class="result-info"><div class="result-title">${r.title}</div><div class="result-meta">${r.artist}</div></div><button class="btn-play-badge">PLAY</button></div>`).join('');
 }
 
-// 🚨 SAVE PLAYLISTS / COLLECTIONS LOGIC
 window.toggleCollectionSave = function() {
   if(!currentCollectionInfo) return;
   let cols = JSON.parse(localStorage.getItem('og_collections') || '[]');
