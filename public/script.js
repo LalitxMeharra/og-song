@@ -50,7 +50,7 @@ const Router = {
 
 window.onload = () => {
   Router.init();
-  initMediaSession(); // Initializes controls ONLY ONCE to prevent multi-click bugs
+  initMediaSession(); // Initialize handlers strictly ONCE
   loadHomeData();
   renderFavorites();
   renderLibrary();
@@ -260,29 +260,33 @@ async function executeLiveSearch(query) {
 const audio = document.getElementById('audio');
 
 // ==========================================
-// 🚨 NOTIFICATION BAR (MEDIA SESSION) FIXES
+// 🚨 NOTIFICATION BAR (CLAUDE FIXES)
 // ==========================================
 
 function initMediaSession() {
-  if ('mediaSession' in navigator) {
-    navigator.mediaSession.setActionHandler('play', () => { audio.play(); setPlayState(true); });
-    navigator.mediaSession.setActionHandler('pause', () => { audio.pause(); setPlayState(false); });
-    
-    navigator.mediaSession.setActionHandler('previoustrack', () => {
+  if (!('mediaSession' in navigator)) return;
+
+  const actions = [
+    ['play', () => { audio.play(); setPlayState(true); }],
+    ['pause', () => { audio.pause(); setPlayState(false); }],
+    ['previoustrack', () => {
       if (currentContextList.length > 0 && currentTrackIndex > 0) {
         openTrack(currentContextList[currentTrackIndex - 1].pid);
       } else { audio.currentTime = 0; }
-    });
-    
-    navigator.mediaSession.setActionHandler('nexttrack', () => playNextSong());
+    }],
+    ['nexttrack', () => playNextSong()],
+    ['seekto', (details) => { audio.currentTime = details.seekTime; }],
+    ['seekbackward', null],
+    ['seekforward', null]
+  ];
 
-    navigator.mediaSession.setActionHandler('seekto', (details) => {
-      audio.currentTime = details.seekTime;
-    });
-
-    // Disable 10-second forward/backward skips strictly
-    try { navigator.mediaSession.setActionHandler('seekbackward', null); } catch(e) {}
-    try { navigator.mediaSession.setActionHandler('seekforward', null); } catch(e) {}
+  // Try/Catch loop prevents an unsupported action from breaking the null assignments
+  for (const [action, handler] of actions) {
+    try {
+      navigator.mediaSession.setActionHandler(action, handler);
+    } catch (e) {
+      console.warn(`Unsupported media action: ${action}`);
+    }
   }
 }
 
@@ -293,6 +297,7 @@ function updateMediaSessionMetadata(songData) {
       artist: songData.artist || 'Unknown Artist',
       album: songData.album || 'OG-SONG DL Vault',
       artwork: [
+        // Using ONE 512x512 size prevents Android from lagging the notification rebuild
         { src: songData.image.replace('150x150', '500x500'), sizes: '512x512', type: 'image/jpeg' }
       ]
     });
@@ -301,14 +306,15 @@ function updateMediaSessionMetadata(songData) {
 
 function updateMediaSessionPosition() {
   if ('mediaSession' in navigator && 'setPositionState' in navigator.mediaSession) {
-    if(audio.duration && isFinite(audio.duration) && audio.duration > 0) {
+    // Strict Finite checks prevent NaN crashes which cause 10s skip fallback
+    if(Number.isFinite(audio.duration) && audio.duration > 0 && Number.isFinite(audio.currentTime)) {
       try {
         navigator.mediaSession.setPositionState({
           duration: audio.duration,
           playbackRate: audio.playbackRate,
           position: audio.currentTime
         });
-      } catch(e) {} // Failsafe for fast skipping
+      } catch(e) {} 
     }
   }
 }
@@ -437,6 +443,11 @@ function setPlayState(isPlaying) {
   document.getElementById('playBtn').textContent = isPlaying ? '❚❚' : '▶';
   document.getElementById('mpPlayBtn').textContent = isPlaying ? '❚❚' : '▶';
   document.getElementById('discCover').classList.toggle('playing', isPlaying);
+  
+  // Explicitly tell the OS the state so it doesn't throttle taps
+  if ('mediaSession' in navigator) {
+    navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+  }
 }
 
 document.getElementById('prevTrackBtn').addEventListener('click', () => {
