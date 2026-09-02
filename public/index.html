@@ -1,471 +1,203 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FindXMusic - The Audio Dojo</title>
-    <!-- CSS will be linked here later -->
-    <link rel="stylesheet" href="style.css">
-    <!-- Google Fonts for Premium Look (Cinzel for headings, Satoshi/Inter for body) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>OG-SONG.DL - The Master Vault</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-    <!-- Dynamic Background Effects Wrapper -->
-    <div id="dynamic-bg">
-        <div class="aurora-blob blob-1"></div>
-        <div class="aurora-blob blob-2"></div>
-        <div class="aurora-blob blob-3"></div>
-        <div class="mesh-overlay"></div>
-    </div>
+  
+  <header class="top-bar">
+    <div class="brand">OG-SONG<span>.DL</span></div>
+    <div class="top-badge">極音 320 KBPS</div>
+  </header>
 
-    <!-- Main Application Container (Glassmorphism Base) -->
-    <div id="app-container">
+  <main id="homeView" class="view active">
+    <div class="hero-section">
+      <div class="hero-badge">v4.2.0 • SMART ENGINE</div>
+      <h1 class="hero-title">Discover.<br><span class="highlight">Download</span> Free.</h1>
+    </div>
+    
+    <div class="section-title"><span>01</span> Your Favorites ❤️</div>
+    <div class="h-scroll" id="favoritesGrid"></div>
+
+    <div class="section-title"><span>02</span> Trending Now 🔥</div>
+    <div class="h-scroll" id="trendingGrid"></div>
+
+    <div class="section-title"><span>03</span> New Releases ⚡</div>
+    <div class="h-scroll" id="newReleasesGrid"></div>
+
+    <div class="section-title"><span>04</span> Artist Radar 🎧</div>
+    <div class="h-scroll" id="artistsGrid"></div>
+  </main>
+
+  <main id="exploreView" class="view">
+    <div class="search-container">
+      <input type="text" id="q" placeholder="Type a song, artist, or album..." autocomplete="off">
+    </div>
+    <div id="searchSpinner" style="display:none; text-align:center; padding: 20px; font-family:'Space Mono'; color:var(--crimson);">Searching the vault...</div>
+    <div id="topMatchContainer" style="display:none; margin-bottom: 24px;">
+      <div class="section-title"><span>★</span> Top Match</div>
+      <div id="topMatchCard"></div>
+    </div>
+    <div class="section-title" id="otherResultsTitle" style="display:none;"><span>■</span> Results</div>
+    <div id="resultsList" class="list-container"></div>
+  </main>
+
+  <main id="playlistView" class="view">
+    <div class="section-title"><span>★</span> My Library</div>
+    <div class="lib-tabs">
+      <button class="lib-tab active" id="tabSongs" onclick="switchLibTab('songs')">Saved Songs</button>
+      <button class="lib-tab" id="tabCollections" onclick="switchLibTab('collections')">Saved Collections</button>
+    </div>
+    <div id="playlistGrid" class="list-container"></div>
+    <div id="savedCollectionsGrid" class="list-container" style="display: none;"></div>
+  </main>
+
+  <main id="archiveView" class="view">
+    <div class="section-title"><span>⏱</span> Listen History</div>
+    <div id="archiveList" class="list-container"></div>
+  </main>
+
+  <main id="collectionView" class="view">
+    <div class="collection-header">
+      <button class="back-btn" id="collectionBackBtn">← BACK TO HOME</button>
+      <img id="colImg" src="" alt="Cover">
+      <h2 id="colTitle">Collection</h2>
+      <div class="col-meta" id="colSubtitle">Album</div>
+      <button class="save-col-btn" id="saveCollectionBtn" onclick="toggleCollectionSave()">+ Save Collection</button>
+    </div>
+    <div id="collectionList" class="list-container" style="margin-top: 16px;"></div>
+  </main>
+
+  <div class="mini-player" id="miniPlayer" style="display: none;">
+    <img id="mpCover" src="" alt="Cover">
+    <div class="mp-info">
+      <div class="mp-title" id="mpTitle">Title</div>
+      <div class="mp-artist" id="mpArtist">Artist</div>
+    </div>
+    <button class="mp-play" id="mpPlayBtn">▶</button>
+  </div>
+
+  <div class="full-player" id="fullPlayer">
+    <div class="fp-header">
+      <button class="fp-close" id="closePlayerBtn">↓ 閉じる CLOSE PLAYER</button>
+    </div>
+    
+    <div class="fp-content">
+      <div class="disc-cover" id="discCover">
+        <img id="playerCover" src="" alt="Cover">
+      </div>
+      
+      <div class="fp-info">
+        <h2 id="pTitle">Title</h2>
+        <div class="fp-meta">
+          <span class="fp-artist" id="pArtist">Artist</span>
+        </div>
+        <div class="fp-album" id="pAlbum">Album</div>
         
-        <!-- Top Navigation -->
-        <header class="top-header">
-            <div class="logo">
-                <span class="logo-text">FindXMusic</span>
-                <span class="logo-dot">.</span>
-            </div>
-            <!-- 320kbps badge removed as requested, replaced with a sleek minimal menu icon -->
-            <button class="menu-btn" aria-label="Menu">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="6" x2="20" y2="6"></line><line x1="4" y1="18" x2="20" y2="18"></line></svg>
+        <div class="action-row">
+          <button class="action-btn" id="favBtn" title="Favorite">♡</button>
+          <button class="action-btn" id="libBtn" title="Add to Library">+</button>
+        </div>
+      </div>
+
+      <div class="player-engine">
+        <div class="control-panel">
+          <div class="transport-row">
+            <button class="p-btn" id="prevTrackBtn" title="Previous Song">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
             </button>
-        </header>
+            <button class="p-btn p-play" id="playBtn">▶</button>
+            <button class="p-btn" id="nextTrackBtn" title="Next Song">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+            </button>
+          </div>
 
-        <!-- Scrollable Content Area -->
-        <main class="content-area">
-            
-            <!-- HOME VIEW -->
-            <section id="home-view" class="view-section active">
-                <div class="hero-section">
-                    <!-- Tagda Premium Tagline -->
-                    <h1 class="hero-title">The Zen of Sound.</h1>
-                    <p class="hero-subtitle">Ad-Free. Limitless. Master Your Auditory Journey.</p>
-                </div>
+          <div class="seek-wrap" style="margin-bottom: 16px;">
+            <span class="time" id="curTime">0:00</span>
+            <input type="range" id="seek" min="0" max="100" value="0" step="0.1">
+            <span class="time" id="durTime">0:00</span>
+          </div>
 
-                <div class="category-section">
-                    <div class="section-header">
-                        <span class="section-number">01</span>
-                        <h2>Your Favorites</h2>
-                    </div>
-                    <div class="horizontal-scroll hide-scrollbar">
-                        <!-- Card 1 -->
-                        <div class="track-card premium-card">
-                            <div class="card-image-wrapper">
-                                <img src="https://via.placeholder.com/150" alt="Song Art">
-                                <div class="card-overlay-play">
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                                </div>
-                            </div>
-                            <div class="card-info">
-                                <h3>Sitaare</h3>
-                                <p>Arijit Singh</p>
-                            </div>
-                        </div>
-                        <!-- Card 2 -->
-                        <div class="track-card premium-card">
-                            <div class="card-image-wrapper">
-                                <img src="https://via.placeholder.com/150" alt="Song Art">
-                                <div class="card-overlay-play">
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                                </div>
-                            </div>
-                            <div class="card-info">
-                                <h3>Khat</h3>
-                                <p>Navjot Ahuja</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="category-section">
-                    <div class="section-header">
-                        <span class="section-number">02</span>
-                        <h2>Trending Now</h2>
-                    </div>
-                    <div class="horizontal-scroll hide-scrollbar">
-                         <!-- Card Placements -->
-                         <div class="track-card premium-card">
-                            <div class="card-image-wrapper">
-                                <img src="https://via.placeholder.com/150" alt="Trending Art">
-                                <div class="card-overlay-play">
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                                </div>
-                            </div>
-                            <div class="card-info">
-                                <h3>Har Har Mahadev</h3>
-                                <p>Sachet Tandon</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Aesthetic Quote Section -->
-                <div class="quote-section">
-                    <blockquote class="aesthetic-quote">
-                        <svg class="quote-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"></path><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"></path></svg>
-                        <p>一期一会 (Ichi-go ichi-e)</p>
-                        <cite>One sound, one encounter. Treasure every note.</cite>
-                    </blockquote>
-                </div>
-            </section>
-
-            <!-- SEARCH & EXPLORE VIEW -->
-            <section id="search-view" class="view-section hidden">
-                <div class="search-container">
-                    <div class="search-input-wrapper">
-                        <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                        <input type="text" id="search-input" placeholder="Search tracks, albums..." autocomplete="off">
-                        <button class="clear-search hidden">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Artist Radar inside Search Section -->
-                <div class="artist-radar-section">
-                    <div class="section-header">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18v-6a9 9 0 0 1 18 0v6"></path><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path></svg>
-                        <h2>Artist Radar</h2>
-                    </div>
-                    <div class="artist-grid">
-                        <div class="artist-card">
-                            <img src="https://via.placeholder.com/100" alt="Arijit Singh" class="artist-avatar">
-                            <span class="artist-name">Arijit Singh</span>
-                        </div>
-                        <div class="artist-card">
-                            <img src="https://via.placeholder.com/100" alt="Dhanda Nyoliwala" class="artist-avatar">
-                            <span class="artist-name">Dhanda Nyoliwala</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="search-results-list">
-                    <div class="section-header">
-                        <h2>Results</h2>
-                    </div>
-                    <!-- Premium Search Result Item (Circular Play Button) -->
-                    <div class="result-item">
-                        <img src="https://via.placeholder.com/50" alt="Track">
-                        <div class="result-info">
-                            <h4>Khat</h4>
-                            <p>Guru Randhawa</p>
-                        </div>
-                        <button class="circular-play-btn">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                        </button>
-                    </div>
-                </div>
-            </section>
-
-            <!-- PLAYLIST / ACTIVE QUEUE VIEW -->
-            <section id="playlist-view" class="view-section hidden">
-                <div class="playlist-header">
-                    <h2>Up Next</h2>
-                </div>
-                <div class="playlist-container">
-                    <!-- Premium highlighted active song -->
-                    <div class="playlist-item active-playing">
-                        <div class="playing-indicator">
-                            <span class="bar bar1"></span>
-                            <span class="bar bar2"></span>
-                            <span class="bar bar3"></span>
-                        </div>
-                        <img src="https://via.placeholder.com/50" alt="Active Track">
-                        <div class="playlist-info">
-                            <h4>Sitaare (From "Ikkis")</h4>
-                            <p>Arijit Singh</p>
-                        </div>
-                    </div>
-                    <!-- Normal song -->
-                    <div class="playlist-item">
-                        <span class="track-number">2</span>
-                        <img src="https://via.placeholder.com/50" alt="Next Track">
-                        <div class="playlist-info">
-                            <h4>Badeya</h4>
-                            <p>Toshi Sabri</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Footer fixed at bottom of content area -->
-            <footer class="site-footer">
-                <div class="footer-content">
-                    <h3 class="footer-logo">FindXMusic<span>.</span></h3>
-                    <p class="footer-slogan">Master Sound. Ad-Free. Limits Eliminated.</p>
-                    <div class="footer-links">
-                        <a href="#">Explore Dojo</a>
-                        <span class="separator">&bull;</span>
-                        <a href="#">API Engine</a>
-                        <span class="separator">&bull;</span>
-                        <a href="#">Terms</a>
-                    </div>
-                    <p class="copyright">&copy; 2026 FindXMusic. Pure Audio Freedom.</p>
-                </div>
-            </footer>
-            
-            <!-- Extra padding to ensure scroll doesn't hide under absolute player -->
-            <div class="scroll-spacer"></div>
-        </main>
-
-        <!-- GLOBAL MUSIC PLAYER (Redesigned & Premium) -->
-        <div id="global-player" class="glass-player">
-            <!-- Progress Bar at top of player -->
-            <div class="player-progress-container">
-                <span class="time-current">0:00</span>
-                <div class="progress-bar-wrapper">
-                    <div class="progress-bar-fill" style="width: 30%;">
-                        <div class="progress-thumb"></div>
-                    </div>
-                </div>
-                <span class="time-total">4:56</span>
+          <div class="sub-controls">
+            <div class="vol-box">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+              <input type="range" id="vol" min="0" max="100" value="85">
             </div>
-
-            <div class="player-controls-layout">
-                <!-- Track Info -->
-                <div class="player-track-info" id="open-full-player">
-                    <div class="spinning-vinyl">
-                        <img src="https://via.placeholder.com/50" alt="Now Playing">
-                        <div class="vinyl-hole"></div>
-                    </div>
-                    <div class="info-text">
-                        <h4 class="marquee-text">Khat</h4>
-                        <p>Navjot Ahuja</p>
-                    </div>
-                </div>
-
-                <!-- Main Controls -->
-                <div class="player-main-controls">
-                    <button class="control-btn prev-btn">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="19 20 9 12 19 4 19 20"></polygon><line x1="5" y1="19" x2="5" y2="5"></line></svg>
-                    </button>
-                    <button class="control-btn play-pause-btn">
-                        <!-- Play Icon (SVG) -->
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                    </button>
-                    <button class="control-btn next-btn">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19"></line></svg>
-                    </button>
-                </div>
-
-                <!-- Action Buttons (Favorite, Library, Download grouped together) -->
-                <div class="player-actions">
-                    <button class="action-btn fav-btn">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
-                    </button>
-                    <button class="action-btn add-btn">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                    </button>
-                    <!-- Sleek Download Icon replaced the ugly big stamp -->
-                    <button class="action-btn download-btn">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                    </button>
-                </div>
+            <div class="speed-box">
+              <select id="speed">
+                <option value="0.75">0.75×</option>
+                <option value="1" selected>1.0×</option>
+                <option value="1.25">1.25×</option>
+                <option value="1.5">1.5×</option>
+              </select>
             </div>
+          </div>
         </div>
 
-        <!-- Bottom Navigation Menu (App Style) -->
-        <nav class="bottom-nav">
-            <button class="nav-item active" data-target="home-view">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 1Dojo theme ke liye premium HTML structure ready hai. Purani tagline ko replace karke ek heavy, premium tagline (**"Enter the Dojo: Precision, Speed, Unrivaled Mastery"**) set kar di gayi hai, aur DOM me deep nesting ki hai taaki CSS se ekdam next-level animations, katana effects, aur dark-zen UI banaya ja sake.
+        <button class="master-dl-btn" id="openDlModal">⚡ DOWNLOAD AUDIO STAMPS</button>
+      </div>
 
-```html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dojo - The Ultimate Digital Mastery</title>
-    <!-- Font Awesome for Premium Icons -->
-    <link rel="stylesheet" href="[https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css](https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css)">
-    <!-- Google Fonts: Japanese aesthetics & Premium Sans -->
-    <link href="[https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Cinzel:wght@700&family=Space+Grotesk:wght@400;700&display=swap](https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Cinzel:wght@700&family=Space+Grotesk:wght@400;700&display=swap)" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
-</head>
-<body class="dojo-dark-theme">
+      <!-- UP NEXT QUEUE IN PLAYER -->
+      <div class="queue-section" id="playerQueueSection">
+        <div class="queue-title">Up Next</div>
+        <div id="playerQueueList" class="list-container"></div>
+      </div>
 
-    <!-- Custom Preloader: Katana Slash Effect -->
-    <div id="dojo-preloader">
-        <div class="katana-blade"></div>
-        <div class="preloader-text">Waking the Dragon...</div>
     </div>
+  </div>
 
-    <!-- Ambient Background Elements (For CSS Particles/Glows) -->
-    <div class="ambient-background">
-        <div class="glow-orb red-orb"></div>
-        <div class="glow-orb black-orb"></div>
-        <div class="noise-overlay"></div>
+  <nav class="bottom-nav">
+    <div class="nav-item active" data-target="homeView">
+      <div class="icon">🏠</div><span>Home</span>
     </div>
+    <div class="nav-item" data-target="exploreView">
+      <div class="icon">🔍</div><span>Explore</span>
+    </div>
+    <div class="nav-item" data-target="playlistView">
+      <div class="icon">🎵</div><span>Library</span>
+    </div>
+    <div class="nav-item" data-target="archiveView">
+      <div class="icon">⏳</div><span>Archive</span>
+    </div>
+  </nav>
 
-    <!-- Top Navigation -->
-    <header class="dojo-navbar">
-        <div class="nav-container">
-            <div class="nav-logo">
-                <i class="fa-solid fa-torii-gate logo-icon"></i>
-                <span class="logo-text">DOJO<span class="dot">.</span></span>
-            </div>
-            
-            <nav class="nav-links">
-                <a href="#home" class="nav-item active">
-                    <span class="en">Home</span>
-                    <span class="jp">ホーム</span>
-                </a>
-                <a href="#arsenal" class="nav-item">
-                    <span class="en">Arsenal</span>
-                    <span class="jp">武器庫</span>
-                </a>
-                <a href="#features" class="nav-item">
-                    <span class="en">Mastery</span>
-                    <span class="jp">熟練</span>
-                </a>
-            </nav>
+  <div class="modal-overlay" id="dlModal">
+    <div class="modal-box">
+      <div class="modal-title">Select Audio Quality</div>
+      <a id="btn320" class="dl-link" download>320 KBPS <span class="badge">HQ</span></a>
+      <a id="btn160" class="dl-link" download>160 KBPS <span class="badge">SQ</span></a>
+      <a id="btn96" class="dl-link" download>96 KBPS <span class="badge">LQ</span></a>
+      <button class="modal-close" id="closeDlModal">Cancel</button>
+    </div>
+  </div>
 
-            <div class="nav-actions">
-                <button class="theme-toggle" aria-label="Toggle Theme">
-                    <i class="fa-solid fa-moon"></i>
-                </button>
-                <button class="premium-btn nav-btn">
-                    <span>Initialize</span>
-                    <i class="fa-solid fa-arrow-right"></i>
-                </button>
-            </div>
-        </div>
-    </header>
+  <div class="modal-overlay" id="exitModal">
+    <div class="modal-box" style="text-align: center;">
+      <div class="modal-title" style="margin-bottom: 16px;">Leave the Dojo?</div>
+      <p style="font-family:'Space Mono'; font-size:12px; margin-bottom: 24px; color:var(--text-muted);">Audio streams will terminate.</p>
+      <div style="display:flex; gap:12px; justify-content:center;">
+        <button class="btn-page" id="btnExitYes" style="flex:1;">Yes</button>
+        <button class="master-dl-btn" id="btnExitNo" style="flex:1; margin-top:0;">Stay</button>
+      </div>
+    </div>
+  </div>
 
-    <!-- Main Hero Section -->
-    <main>
-        <section id="home" class="hero-section">
-            <div class="kanji-background" aria-hidden="true">道場</div>
-            
-            <div class="hero-content">
-                <div class="badge">
-                    <i class="fa-solid fa-fire-flame-curved"></i> Version 2.0.0 - The Ronin Update
-                </div>
-                
-                <!-- NEW PREMIUM TAGLINES -->
-                <h1 class="hero-title">
-                    Enter the Dojo: <br>
-                    <span class="text-gradient">Precision, Speed, <br>Unrivaled Mastery.</span>
-                </h1>
-                
-                <p class="hero-subtitle">
-                    Harness the spirit of the Samurai. Your ultimate digital toolkit built for seamless performance, untraceable execution, and absolute control.
-                </p>
+  <div class="toast" id="toast"><span id="toastMsg"></span></div>
+  <audio id="audio"></audio>
 
-                <!-- Core Input Area (BCA/Dev Level Structure) -->
-                <div class="action-console">
-                    <div class="input-group">
-                        <div class="input-icon-wrapper">
-                            <i class="fa-solid fa-link"></i>
-                        </div>
-                        <input type="url" id="target-url" class="dojo-input" placeholder="Paste your target URL to strike..." autocomplete="off">
-                        <button id="execute-btn" class="execute-btn">
-                            <span class="btn-text">Strike Now</span>
-                            <i class="fa-solid fa-khanda"></i>
-                        </button>
-                    </div>
-                    <div class="console-status">
-                        <span class="status-dot pulsing"></span>
-                        <span class="status-text">System Ready. Awaiting Command.</span>
-                    </div>
-                </div>
-            </div>
-        </section>
+  <footer class="premium-footer">
+    <div class="f-brand">OG-SONG<span>.DL</span></div>
+    <p class="f-tagline">Master Sound. Ad-Free. Limits Eliminated.</p>
+    <div class="f-links">
+      <a href="#">Explore Dojo</a> • <a href="#">API Engine</a> • <a href="#">Terms</a>
+    </div>
+    <div class="f-copy">© 2026 OG-SONG Downloader. Pure Audio Freedom.</div>
+  </footer>
 
-        <!-- The Armory (Workspace / Result Area) -->
-        <section id="arsenal" class="workspace-section">
-            <div class="section-container">
-                <div class="section-header">
-                    <h2 class="section-title">The Armory</h2>
-                    <div class="katana-divider">
-                        <div class="blade-left"></div>
-                        <i class="fa-solid fa-yin-yang"></i>
-                        <div class="blade-right"></div>
-                    </div>
-                </div>
-
-                <!-- Glassmorphism Result Panel -->
-                <div class="result-glass-panel" id="output-terminal">
-                    <!-- Default Empty State -->
-                    <div class="empty-state">
-                        <i class="fa-solid fa-dragon empty-icon"></i>
-                        <h3>The Dojo is Silent</h3>
-                        <p>Initiate a strike to reveal your targets here.</p>
-                    </div>
-                    
-                    <!-- Dynamic Content Container (Hidden by default, used by JS later) -->
-                    <div class="dynamic-results hidden" id="results-container">
-                        <!-- Data cards will be injected here -->
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Features Grid -->
-        <section id="features" class="features-section">
-            <div class="section-container">
-                <div class="features-grid">
-                    <!-- Feature 1 -->
-                    <div class="feature-card">
-                        <div class="card-glow"></div>
-                        <div class="feature-icon">
-                            <i class="fa-solid fa-bolt-lightning"></i>
-                        </div>
-                        <h3>Razor Execution</h3>
-                        <p>Optimized algorithms that cut through network latency like a Katana. Zero delays, maximum throughput.</p>
-                    </div>
-                    
-                    <!-- Feature 2 -->
-                    <div class="feature-card">
-                        <div class="card-glow"></div>
-                        <div class="feature-icon">
-                            <i class="fa-solid fa-user-ninja"></i>
-                        </div>
-                        <h3>Ronin Stealth</h3>
-                        <p>Your operations leave no trace. Advanced proxy tunneling ensures complete anonymity.</p>
-                    </div>
-
-                    <!-- Feature 3 -->
-                    <div class="feature-card">
-                        <div class="card-glow"></div>
-                        <div class="feature-icon">
-                            <i class="fa-solid fa-cubes-stacked"></i>
-                        </div>
-                        <h3>Absolute Control</h3>
-                        <p>Granular settings for format, quality, and metadata extraction. You command the flow.</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <!-- Footer -->
-    <footer class="dojo-footer">
-        <div class="footer-top">
-            <div class="footer-brand">
-                <h2>DOJO<span class="dot-red">.</span></h2>
-                <p>Forged in code. Mastered in execution.</p>
-            </div>
-            <div class="footer-links">
-                <a href="#">Scrolls (Docs)</a>
-                <a href="#">Sensei (Support)</a>
-                <a href="#">Code of Conduct</a>
-            </div>
-        </div>
-        <div class="footer-bottom">
-            <p>&copy; 2026 Dojo Core Systems. All Rights Reserved.</p>
-            <div class="social-links">
-                <i class="fa-brands fa-github"></i>
-                <i class="fa-brands fa-discord"></i>
-            </div>
-        </div>
-    </footer>
-
-    <!-- Scripts -->
-    <script src="script.js"></script>
+  <script src="/script.js"></script>
 </body>
 </html>
