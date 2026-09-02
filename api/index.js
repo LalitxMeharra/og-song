@@ -126,13 +126,7 @@ export default async function handler(req, res) {
         { id: "frMkfb2B4E8_", title: "Karan Aujla", image: "https://c.saavncdn.com/artists/Karan_Aujla_004_20260810121947_500x500.jpg", type: "artist" },
         { id: "06QxyAvVpB4_", title: "Yo Yo Honey Singh", image: "https://c.saavncdn.com/artists/Yo_Yo_Honey_Singh_004_20260811095253_500x500.jpg", type: "artist" },
         { id: "oIVHdWIO5F8_", title: "Diljit Dosanjh", image: "https://c.saavncdn.com/artists/Diljit_Dosanjh_005_20231025073054_500x500.jpg", type: "artist" },
-        { id: "sF6m,UAR8co_", title: "Hansraj Raghuwanshi", image: "https://c.saavncdn.com/artists/Hansraj_Raghuwanshi_001_20220916054832_500x500.jpg", type: "artist" },
-        { id: "CfABr-vmQdw_", title: "B Praak", image: "https://c.saavncdn.com/artists/B_Praak_001_20191118112005_500x500.jpg", type: "artist" },
-        { id: "fe0z9ZAFgGE_", title: "Kumar Sanu", image: "https://c.saavncdn.com/artists/Kumar_Sanu_500x500.jpg", type: "artist" },
-        { id: "uGdfg6zGf4s_", title: "Jubin Nautiyal", image: "https://c.saavncdn.com/artists/Jubin_Nautiyal_003_20231130204020_500x500.jpg", type: "artist" },
-        { id: "FCtl69DObYg_", title: "Lata Mangeshkar", image: "https://c.saavncdn.com/artists/Lata_Mangeshkar_004_20230623105323_500x500.jpg", type: "artist" },
-        { id: "uqRkqsl4ZnQ_", title: "Alka Yagnik", image: "https://c.saavncdn.com/artists/Alka_Yagnik_002_20220314192930_500x500.jpg", type: "artist" },
-        { id: "kLtmb7Vh8Rs_", title: "Udit Narayan", image: "https://c.saavncdn.com/artists/Udit_Narayan_004_20241029065120_500x500.jpg", type: "artist" }
+        { id: "sF6m,UAR8co_", title: "Hansraj Raghuwanshi", image: "https://c.saavncdn.com/artists/Hansraj_Raghuwanshi_001_20220916054832_500x500.jpg", type: "artist" }
       ];
 
       const normalize = (arr) => (arr || []).map(item => ({
@@ -220,7 +214,42 @@ export default async function handler(req, res) {
       });
     }
 
-    // 4. DETAILS API
+    // 4. RECOMMEND API (MOVED ABOVE DETAILS TO PREVENT CONFLICTS)
+    if (action === 'recommend' || pathname.includes('/recommend')) {
+      const targetPid = req.query.pid || urlObj.searchParams.get('pid');
+      if (!targetPid) return res.status(400).json({ error: 'Missing song pid' });
+
+      try {
+        const recoUrl = `https://jiosaavn-plugin-api.vercel.app/api/recommendations?id=${encodeURIComponent(targetPid)}&limit=25`;
+        const recoRes = await fetch(recoUrl, {
+            headers: {
+                "User-Agent": "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/114.0.0.0 Mobile Safari/537.36",
+                "Accept": "application/json"
+            }
+        });
+        
+        if (!recoRes.ok) throw new Error("Plugin API failed");
+        
+        const data = await recoRes.json();
+        const tracks = data.tracks || [];
+
+        const radioSongs = tracks.map(song => {
+          return {
+            pid: String(song.identifier || song.id || '').split(',')[0].trim(),
+            title: cleanText(song.title || 'Unknown'),
+            artist: cleanText(song.author || 'Unknown Artist'),
+            image: String(song.image || song.thumbnail || '').replace('50x50', '500x500').replace('150x150', '500x500')
+          };
+        });
+
+        // Filter out empty pids just in case
+        return res.status(200).json(radioSongs.filter(s => s.pid));
+      } catch (err) {
+        return res.status(500).json({ error: 'Recommendation failed: ' + err.message });
+      }
+    }
+
+    // 5. DETAILS API
     if (action === 'details' || pathname.includes('/details') || (pid && !q)) {
       const targetPid = String(pid || '').split(',')[0].trim();
       const detailsUrl = `https://www.jiosaavn.com/api.php?__call=song.getDetails&cc=in&_marker=0&_format=json&pids=${encodeURIComponent(targetPid)}`;
@@ -256,31 +285,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // 4.5 SMART RADIO API (SIMILAR SONGS BY ARTIST & VIBE)
-    if (action === 'recommend' || pathname.includes('/recommend')) {
-      const targetPid = req.query.pid || urlObj.searchParams.get('pid');
-      if (!targetPid) return res.status(400).json({ error: 'Missing song pid' });
-
-      const recoUrl = `https://www.jiosaavn.com/api.php?__call=reco.getreco&api_version=4&_format=json&_marker=0&pid=${encodeURIComponent(targetPid)}`;
-      
-      const data = await safeFetchJSON(recoUrl, { headers });
-      if (!data || !Array.isArray(data)) return res.status(404).json({ error: 'No recommendations found' });
-
-      const radioSongs = data.map(song => {
-        let artistName = song.subtitle || song.singers || song.primary_artists || 'Unknown Artist';
-        if (typeof artistName === 'string' && artistName.includes(' - ')) artistName = artistName.split(' - ')[0];
-        return {
-          pid: String(song.id || song.perma_url || '').split(',')[0].trim(),
-          title: cleanText(song.title || song.song),
-          artist: cleanText(artistName),
-          image: String(song.image || '').replace('50x50', '500x500').replace('150x150', '500x500')
-        };
-      });
-
-      return res.status(200).json(radioSongs);
-    }
-
-    // 5. DOWNLOAD PROXY
+    // 6. DOWNLOAD PROXY
     if (pathname.includes('/download') || action === 'download') {
       const downloadUrl = req.query.url || urlObj.searchParams.get('url');
       const filename = req.query.filename || urlObj.searchParams.get('filename');
