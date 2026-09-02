@@ -4,26 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>FINDXMUSIC</title>
-  <!-- Premium Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <!-- Dynamic Mesh Background Wrapper -->
   <div class="bg-mesh-overlay"></div>
   <div class="bg-aurora-glow"></div>
 
-  <!-- Top Header -->
   <header class="top-bar">
     <div class="brand">FINDXMUSIC<span>.</span></div>
-    <!-- 320kbps text removed completely as requested -->
-    <!-- Minimalist Menu Icon instead of ugly badge -->
     <button class="top-menu-btn" aria-label="Menu">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="6" x2="20" y2="6"></line><line x1="4" y1="18" x2="20" y2="18"></line></svg>
     </button>
   </header>
 
-  <!-- HOME VIEW (Matching old JS IDs) -->
   <main id="homeView" class="view active">
     <div class="hero-section">
       <h1 class="hero-title">The Zen of <span class="highlight">Sound.</span></h1>
@@ -38,18 +32,21 @@
 
     <div class="section-title"><span>03</span> New Releases</div>
     <div class="h-scroll" id="newReleasesGrid"></div>
+
+    <!-- ARTIST RADAR ON HOME PAGE -->
+    <div class="section-title"><span>04</span> Artist Radar</div>
+    <div class="h-scroll" id="artistsGridHome"></div>
   </main>
 
-  <!-- EXPLORE / SEARCH VIEW (Artist Radar moved here) -->
   <main id="exploreView" class="view">
     <div class="search-container">
       <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
       <input type="text" id="q" placeholder="Search tracks, albums..." autocomplete="off">
     </div>
 
-    <!-- Artist Radar moved directly into explore section for better UX -->
-    <div class="section-title"><span>04</span> Artist Radar</div>
-    <div class="h-scroll" id="artistsGrid"></div>
+    <!-- ARTIST RADAR ON EXPLORE PAGE (Hides when searching) -->
+    <div class="section-title" id="exploreArtistTitle">Artist Radar</div>
+    <div class="h-scroll" id="artistsGridExplore"></div>
 
     <div id="searchSpinner" style="display:none; text-align:center; padding: 20px; font-family:'Inter', sans-serif; color:var(--crimson);">Searching the vault...</div>
     
@@ -61,7 +58,6 @@
     <div id="resultsList" class="list-container"></div>
   </main>
 
-  <!-- LIBRARY VIEW -->
   <main id="playlistView" class="view">
     <div class="section-title"><span>★</span> My Library</div>
     <div class="lib-tabs">
@@ -72,13 +68,11 @@
     <div id="savedCollectionsGrid" class="list-container" style="display: none;"></div>
   </main>
 
-  <!-- ARCHIVE VIEW -->
   <main id="archiveView" class="view">
     <div class="section-title"><span>⏱</span> Listen History</div>
     <div id="archiveList" class="list-container"></div>
   </main>
 
-  <!-- COLLECTION / PLAYLIST VIEW -->
   <main id="collectionView" class="view">
     <div class="collection-header">
       <button class="back-btn premium-pill" id="collectionBackBtn">← BACK TO HOME</button>
@@ -90,20 +84,17 @@
     <div id="collectionList" class="list-container" style="margin-top: 16px;"></div>
   </main>
 
-  <!-- MINI PLAYER (Fixed at bottom) -->
   <div class="mini-player" id="miniPlayer" style="display: none;">
     <img id="mpCover" src="" alt="Cover">
     <div class="mp-info">
       <div class="mp-title" id="mpTitle">Title</div>
       <div class="mp-artist" id="mpArtist">Artist</div>
     </div>
-    <!-- Play button icon handled by JS, class kept intact -->
     <button class="mp-play" id="mpPlayBtn">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
     </button>
   </div>
 
-  <!-- FULL GLOBAL PLAYER -->
   <div class="full-player glass-panel" id="fullPlayer">
     <div class="fp-header">
       <button class="fp-close" id="closePlayerBtn">↓ CLOSE PLAYER</button>
@@ -121,15 +112,9 @@
         </div>
         <div class="fp-album" id="pAlbum">Album</div>
         
-        <!-- NEW PREMIUM ACTION ROW: Grouped Fav, Library, and Download together -->
         <div class="action-row">
-          <button class="action-btn" id="favBtn" title="Favorite">
-            <!-- Icon injected by JS -->
-          </button>
-          <button class="action-btn" id="libBtn" title="Add to Library">
-            <!-- Icon injected by JS -->
-          </button>
-          <!-- SLEEK DOWNLOAD BUTTON (Replaced the ugly stamp button) -->
+          <button class="action-btn" id="favBtn" title="Favorite"></button>
+          <button class="action-btn" id="libBtn" title="Add to Library"></button>
           <button class="action-btn" id="openDlModal" title="Download Quality">
              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
           </button>
@@ -173,16 +158,13 @@
         </div>
       </div>
 
-      <!-- UP NEXT QUEUE -->
       <div class="queue-section" id="playerQueueSection">
         <div class="queue-title">Up Next</div>
         <div id="playerQueueList" class="list-container"></div>
       </div>
-
     </div>
   </div>
 
-  <!-- BOTTOM NAVIGATION (App Style) -->
   <nav class="bottom-nav">
     <div class="nav-item active" data-target="homeView">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
@@ -202,7 +184,6 @@
     </div>
   </nav>
 
-  <!-- DOWNLOAD MODAL -->
   <div class="modal-overlay" id="dlModal">
     <div class="modal-box">
       <div class="modal-title">Select Quality</div>
@@ -213,7 +194,6 @@
     </div>
   </div>
 
-  <!-- EXIT CONFIRMATION MODAL -->
   <div class="modal-overlay" id="exitModal">
     <div class="modal-box" style="text-align: center;">
       <div class="modal-title" style="margin-bottom: 16px;">Leave FindXMusic?</div>
@@ -225,7 +205,6 @@
     </div>
   </div>
 
-  <!-- AESTHETIC QUOTE BEFORE FOOTER -->
   <div class="quote-wrapper">
     <blockquote class="aesthetic-quote">
       <svg class="quote-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"></path><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"></path></svg>
@@ -234,11 +213,9 @@
     </blockquote>
   </div>
 
-  <!-- TOAST & AUDIO -->
   <div class="toast" id="toast"><span id="toastMsg"></span></div>
   <audio id="audio"></audio>
 
-  <!-- PREMIUM FOOTER -->
   <footer class="premium-footer">
     <div class="f-brand">FINDXMUSIC<span>.</span></div>
     <p class="f-tagline">Master Sound. Ad-Free. Limits Eliminated.</p>

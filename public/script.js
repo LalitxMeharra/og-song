@@ -41,19 +41,6 @@ const Router = {
       n.classList.remove('active');
       if(n.dataset.target === viewId) n.classList.add('active');
     });
-  },
-  handleBack(e) {
-    if (document.getElementById('fullPlayer')?.classList.contains('open')) {
-      document.getElementById('fullPlayer').classList.remove('open');
-    } 
-    else if (e.state && e.state.view) {
-      this.switchUI(e.state.view);
-    } 
-    else if (e.state && e.state.step === 'trap') {
-      const exitModal = document.getElementById('exitModal');
-      if(exitModal) exitModal.style.display = 'flex';
-      history.pushState({ step: 'home', view: 'homeView' }, '');
-    }
   }
 };
 
@@ -114,11 +101,16 @@ async function loadHomeData() {
 
     const tGrid = document.getElementById('trendingGrid');
     const nGrid = document.getElementById('newReleasesGrid');
-    const aGrid = document.getElementById('artistsGrid');
+    const aGridHome = document.getElementById('artistsGridHome');
+    const aGridExplore = document.getElementById('artistsGridExplore');
     
     if(tGrid) tGrid.innerHTML = buildCards(data.trending);
     if(nGrid) nGrid.innerHTML = buildCards(data.new_releases);
-    if(aGrid) aGrid.innerHTML = buildCards(data.artists);
+    
+    // Populate both Artist Radars
+    const artistCards = buildCards(data.artists);
+    if(aGridHome) aGridHome.innerHTML = artistCards;
+    if(aGridExplore) aGridExplore.innerHTML = artistCards;
   } catch (err) { console.error(err); }
 }
 
@@ -243,12 +235,25 @@ if(qInput) {
   qInput.addEventListener('input', (e) => {
     clearTimeout(searchTimer);
     const query = e.target.value.trim();
+    
+    const exploreArtistTitle = document.getElementById('exploreArtistTitle');
+    const artistsGridExplore = document.getElementById('artistsGridExplore');
+
     if(!query) {
       if(document.getElementById('topMatchContainer')) document.getElementById('topMatchContainer').style.display = 'none';
       if(document.getElementById('otherResultsTitle')) document.getElementById('otherResultsTitle').style.display = 'none';
       if(document.getElementById('resultsList')) document.getElementById('resultsList').innerHTML = '';
+      
+      // Show Artist Radar again when search is empty
+      if(exploreArtistTitle) exploreArtistTitle.style.display = 'flex';
+      if(artistsGridExplore) artistsGridExplore.style.display = 'flex';
       return;
     }
+    
+    // Hide Artist Radar when typing search query
+    if(exploreArtistTitle) exploreArtistTitle.style.display = 'none';
+    if(artistsGridExplore) artistsGridExplore.style.display = 'none';
+    
     if(searchSpinner) searchSpinner.style.display = 'block';
     searchTimer = setTimeout(() => executeLiveSearch(query), 500); 
   });
@@ -445,7 +450,7 @@ function renderPlayerQueue() {
     </div>
   `}).join('');
 
-  html += `<div style="padding-top: 10px;"><button class="btn-page premium-pill" onclick="extendQueue()" id="extQueueBtn">LOAD MORE RELATED ↓</button></div>`;
+  html += `<div style="padding-top: 10px;"><button class="btn-page premium-pill" onclick="extendQueue()" id="extQueueBtn" style="border-radius:8px;">LOAD MORE RELATED ↓</button></div>`;
   queueEl.innerHTML = html;
 }
 
