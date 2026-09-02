@@ -126,7 +126,13 @@ export default async function handler(req, res) {
         { id: "frMkfb2B4E8_", title: "Karan Aujla", image: "https://c.saavncdn.com/artists/Karan_Aujla_004_20260810121947_500x500.jpg", type: "artist" },
         { id: "06QxyAvVpB4_", title: "Yo Yo Honey Singh", image: "https://c.saavncdn.com/artists/Yo_Yo_Honey_Singh_004_20260811095253_500x500.jpg", type: "artist" },
         { id: "oIVHdWIO5F8_", title: "Diljit Dosanjh", image: "https://c.saavncdn.com/artists/Diljit_Dosanjh_005_20231025073054_500x500.jpg", type: "artist" },
-        { id: "sF6m,UAR8co_", title: "Hansraj Raghuwanshi", image: "https://c.saavncdn.com/artists/Hansraj_Raghuwanshi_001_20220916054832_500x500.jpg", type: "artist" }
+        { id: "sF6m,UAR8co_", title: "Hansraj Raghuwanshi", image: "https://c.saavncdn.com/artists/Hansraj_Raghuwanshi_001_20220916054832_500x500.jpg", type: "artist" },
+        { id: "CfABr-vmQdw_", title: "B Praak", image: "https://c.saavncdn.com/artists/B_Praak_001_20191118112005_500x500.jpg", type: "artist" },
+        { id: "fe0z9ZAFgGE_", title: "Kumar Sanu", image: "https://c.saavncdn.com/artists/Kumar_Sanu_500x500.jpg", type: "artist" },
+        { id: "uGdfg6zGf4s_", title: "Jubin Nautiyal", image: "https://c.saavncdn.com/artists/Jubin_Nautiyal_003_20231130204020_500x500.jpg", type: "artist" },
+        { id: "FCtl69DObYg_", title: "Lata Mangeshkar", image: "https://c.saavncdn.com/artists/Lata_Mangeshkar_004_20230623105323_500x500.jpg", type: "artist" },
+        { id: "uqRkqsl4ZnQ_", title: "Alka Yagnik", image: "https://c.saavncdn.com/artists/Alka_Yagnik_002_20220314192930_500x500.jpg", type: "artist" },
+        { id: "kLtmb7Vh8Rs_", title: "Udit Narayan", image: "https://c.saavncdn.com/artists/Udit_Narayan_004_20241029065120_500x500.jpg", type: "artist" }
       ];
 
       const normalize = (arr) => (arr || []).map(item => ({
@@ -214,7 +220,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // 4. RECOMMEND API (MOVED ABOVE DETAILS TO PREVENT CONFLICTS)
+    // 4. RECOMMEND API (WITH IMAGE FIX)
     if (action === 'recommend' || pathname.includes('/recommend')) {
       const targetPid = req.query.pid || urlObj.searchParams.get('pid');
       if (!targetPid) return res.status(400).json({ error: 'Missing song pid' });
@@ -238,11 +244,10 @@ export default async function handler(req, res) {
             pid: String(song.identifier || song.id || '').split(',')[0].trim(),
             title: cleanText(song.title || 'Unknown'),
             artist: cleanText(song.author || 'Unknown Artist'),
-            image: String(song.image || song.thumbnail || '').replace('50x50', '500x500').replace('150x150', '500x500')
+            image: String(song.artworkUrl || song.image || song.thumbnail || '').replace('50x50', '500x500').replace('150x150', '500x500')
           };
         });
 
-        // Filter out empty pids just in case
         return res.status(200).json(radioSongs.filter(s => s.pid));
       } catch (err) {
         return res.status(500).json({ error: 'Recommendation failed: ' + err.message });
