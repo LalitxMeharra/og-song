@@ -24,7 +24,7 @@ const Router = {
   },
   navigate(viewId, isPlayer = false) {
     if (isPlayer) {
-      document.getElementById('fullPlayer').classList.add('open');
+      document.getElementById('fullPlayer')?.classList.add('open');
       history.pushState({ step: 'player' }, '');
     } else {
       this.switchUI(viewId);
@@ -41,6 +41,19 @@ const Router = {
       n.classList.remove('active');
       if(n.dataset.target === viewId) n.classList.add('active');
     });
+  },
+  handleBack(e) {
+    if (document.getElementById('fullPlayer')?.classList.contains('open')) {
+      document.getElementById('fullPlayer').classList.remove('open');
+    } 
+    else if (e.state && e.state.view) {
+      this.switchUI(e.state.view);
+    } 
+    else if (e.state && e.state.step === 'trap') {
+      const exitModal = document.getElementById('exitModal');
+      if(exitModal) exitModal.style.display = 'flex';
+      history.pushState({ step: 'home', view: 'homeView' }, '');
+    }
   }
 };
 
@@ -57,6 +70,7 @@ window.onload = () => {
 function escapeHtml(s = '') { return String(s).replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c])); }
 function showToast(msg) {
   const t = document.getElementById('toast');
+  if(!t) return;
   document.getElementById('toastMsg').textContent = msg;
   t.classList.add('show');
   clearTimeout(t._h);
@@ -77,8 +91,15 @@ document.querySelectorAll('.nav-item').forEach(item => {
   });
 });
 
-document.getElementById('btnExitNo').addEventListener('click', () => document.getElementById('exitModal').style.display = 'none');
-document.getElementById('btnExitYes').addEventListener('click', () => { document.getElementById('exitModal').style.display = 'none'; window.history.go(-2); });
+document.getElementById('btnExitNo')?.addEventListener('click', () => { 
+  const el = document.getElementById('exitModal');
+  if(el) el.style.display = 'none';
+});
+document.getElementById('btnExitYes')?.addEventListener('click', () => { 
+  const el = document.getElementById('exitModal');
+  if(el) el.style.display = 'none'; 
+  window.history.go(-2); 
+});
 
 async function loadHomeData() {
   try {
@@ -91,9 +112,13 @@ async function loadHomeData() {
       return `<div class="grid-card" onclick="handleCardClick('${i.id}', '${type}', '${title.replace(/'/g, "\\'")}', '${img}')"><img src="${img}" loading="lazy"><div class="grid-title">${title}</div></div>`;
     }).join('');
 
-    document.getElementById('trendingGrid').innerHTML = buildCards(data.trending);
-    document.getElementById('newReleasesGrid').innerHTML = buildCards(data.new_releases);
-    document.getElementById('artistsGrid').innerHTML = buildCards(data.artists);
+    const tGrid = document.getElementById('trendingGrid');
+    const nGrid = document.getElementById('newReleasesGrid');
+    const aGrid = document.getElementById('artistsGrid');
+    
+    if(tGrid) tGrid.innerHTML = buildCards(data.trending);
+    if(nGrid) nGrid.innerHTML = buildCards(data.new_releases);
+    if(aGrid) aGrid.innerHTML = buildCards(data.artists);
   } catch (err) { console.error(err); }
 }
 
@@ -111,14 +136,17 @@ window.handleCardClick = async function(id, type, title, img) {
     try {
       const res = await fetch(`/api/artist?token=${encodeURIComponent(id)}&page=0&_t=${Date.now()}`);
       const data = await res.json();
+      const colList = document.getElementById('collectionList');
+      
       if(data.topSongs && data.topSongs.length > 0) {
         currentContextList = data.topSongs; 
         renderCollectionList(currentContextList, true);
       } else {
-        document.getElementById('collectionList').innerHTML = `<div style="text-align:center; padding: 20px;">No tracks found.</div>`;
+        if(colList) colList.innerHTML = `<div style="text-align:center; padding: 20px;">No tracks found.</div>`;
       }
     } catch(err) {
-      document.getElementById('collectionList').innerHTML = `<div style="text-align:center; padding: 20px; color:var(--crimson);">Error loading artist.</div>`;
+      const colList = document.getElementById('collectionList');
+      if(colList) colList.innerHTML = `<div style="text-align:center; padding: 20px; color:var(--crimson);">Error loading artist.</div>`;
     }
   } else {
     isSearchContext = false;
@@ -128,23 +156,32 @@ window.handleCardClick = async function(id, type, title, img) {
     try {
       const res = await fetch(`/api/search?q=${encodeURIComponent(title)}&_t=${Date.now()}`);
       const data = await res.json();
+      const colList = document.getElementById('collectionList');
+      
       if(data.results && data.results.length > 0) {
         currentContextList = data.results; 
         renderCollectionList(currentContextList, false);
       } else {
-        document.getElementById('collectionList').innerHTML = `<div style="text-align:center; padding: 20px;">No tracks found.</div>`;
+        if(colList) colList.innerHTML = `<div style="text-align:center; padding: 20px;">No tracks found.</div>`;
       }
     } catch(err) {
-      document.getElementById('collectionList').innerHTML = `<div style="text-align:center; padding: 20px; color:var(--crimson);">Error loading collection.</div>`;
+      const colList = document.getElementById('collectionList');
+      if(colList) colList.innerHTML = `<div style="text-align:center; padding: 20px; color:var(--crimson);">Error loading collection.</div>`;
     }
   }
 };
 
 function setupCollectionHeader(title, img, subtitle) {
-  document.getElementById('colImg').src = img;
-  document.getElementById('colTitle').textContent = title;
-  document.getElementById('colSubtitle').textContent = subtitle;
-  document.getElementById('collectionList').innerHTML = `<div style="text-align:center; padding: 40px; color:var(--crimson);">Loading Tracks...</div>`;
+  const colImg = document.getElementById('colImg');
+  const colTitle = document.getElementById('colTitle');
+  const colSub = document.getElementById('colSubtitle');
+  const colList = document.getElementById('collectionList');
+  
+  if(colImg) colImg.src = img;
+  if(colTitle) colTitle.textContent = title;
+  if(colSub) colSub.textContent = subtitle;
+  if(colList) colList.innerHTML = `<div style="text-align:center; padding: 40px; color:var(--crimson);">Loading Tracks...</div>`;
+  
   checkCollectionState();
   Router.navigate('collectionView');
 }
@@ -166,19 +203,21 @@ function renderCollectionList(songs, isArtist) {
   if(isArtist) {
     html += `
     <div style="display:flex; justify-content:space-between; padding: 20px 0; gap:10px;">
-      <button class="btn-page" onclick="changeArtistPage(-1)" id="prevPageBtn" ${currentArtistPage === 0 ? 'disabled style="opacity:0.5"' : ''}>← PREV</button>
+      <button class="btn-page premium-pill" onclick="changeArtistPage(-1)" id="prevPageBtn" ${currentArtistPage === 0 ? 'disabled style="opacity:0.5"' : ''}>← PREV</button>
       <div style="font-size:14px; font-weight:bold; align-self:center;">PAGE ${currentArtistPage + 1}</div>
-      <button class="btn-page" onclick="changeArtistPage(1)" id="nextPageBtn">NEXT →</button>
+      <button class="btn-page premium-pill" onclick="changeArtistPage(1)" id="nextPageBtn">NEXT →</button>
     </div>`;
   }
-  document.getElementById('collectionList').innerHTML = html;
+  const colList = document.getElementById('collectionList');
+  if(colList) colList.innerHTML = html;
 }
 
 window.changeArtistPage = async function(direction) {
   currentArtistPage += direction;
   if(currentArtistPage < 0) currentArtistPage = 0;
   
-  document.getElementById('collectionList').innerHTML = `<div style="text-align:center; padding: 40px; color:var(--crimson);">Loading Page ${currentArtistPage + 1}...</div>`;
+  const colList = document.getElementById('collectionList');
+  if(colList) colList.innerHTML = `<div style="text-align:center; padding: 40px; color:var(--crimson);">Loading Page ${currentArtistPage + 1}...</div>`;
   
   try {
     const res = await fetch(`/api/artist?token=${encodeURIComponent(currentArtistToken)}&page=${currentArtistPage}&_t=${Date.now()}`);
@@ -187,73 +226,87 @@ window.changeArtistPage = async function(direction) {
       currentContextList = data.topSongs; 
       renderCollectionList(currentContextList, true);
     } else {
-      document.getElementById('collectionList').innerHTML = `<div style="text-align:center; padding: 20px;">No more tracks on this page.</div>
-      <button class="btn-page" onclick="changeArtistPage(-1)">← GO BACK</button>`;
+      if(colList) colList.innerHTML = `<div style="text-align:center; padding: 20px;">No more tracks on this page.</div>
+      <button class="btn-page premium-pill" onclick="changeArtistPage(-1)">← GO BACK</button>`;
     }
   } catch(err) {
-    document.getElementById('collectionList').innerHTML = `<div style="text-align:center; padding: 20px; color:var(--crimson);">Error loading page.</div>`;
+    if(colList) colList.innerHTML = `<div style="text-align:center; padding: 20px; color:var(--crimson);">Error loading page.</div>`;
   }
 };
 
-document.getElementById('collectionBackBtn').addEventListener('click', () => { Router.navigate('homeView'); });
+document.getElementById('collectionBackBtn')?.addEventListener('click', () => { Router.navigate('homeView'); });
 
 const qInput = document.getElementById('q');
 const searchSpinner = document.getElementById('searchSpinner');
 
-qInput.addEventListener('input', (e) => {
-  clearTimeout(searchTimer);
-  const query = e.target.value.trim();
-  if(!query) {
-    document.getElementById('topMatchContainer').style.display = 'none';
-    document.getElementById('otherResultsTitle').style.display = 'none';
-    document.getElementById('resultsList').innerHTML = '';
-    return;
-  }
-  searchSpinner.style.display = 'block';
-  searchTimer = setTimeout(() => executeLiveSearch(query), 500); 
-});
+if(qInput) {
+  qInput.addEventListener('input', (e) => {
+    clearTimeout(searchTimer);
+    const query = e.target.value.trim();
+    if(!query) {
+      if(document.getElementById('topMatchContainer')) document.getElementById('topMatchContainer').style.display = 'none';
+      if(document.getElementById('otherResultsTitle')) document.getElementById('otherResultsTitle').style.display = 'none';
+      if(document.getElementById('resultsList')) document.getElementById('resultsList').innerHTML = '';
+      return;
+    }
+    if(searchSpinner) searchSpinner.style.display = 'block';
+    searchTimer = setTimeout(() => executeLiveSearch(query), 500); 
+  });
+}
 
 async function executeLiveSearch(query) {
   try {
     isSearchContext = true; 
     const res = await fetch(`/api/search?q=${encodeURIComponent(query)}&_t=${Date.now()}`);
     const data = await res.json();
-    searchSpinner.style.display = 'none';
+    if(searchSpinner) searchSpinner.style.display = 'none';
 
     const results = data.results || [];
     if(!results.length) {
-      document.getElementById('topMatchContainer').style.display = 'none';
-      document.getElementById('resultsList').innerHTML = `<div style="padding:20px;text-align:center;">No results found.</div>`;
+      if(document.getElementById('topMatchContainer')) document.getElementById('topMatchContainer').style.display = 'none';
+      if(document.getElementById('resultsList')) document.getElementById('resultsList').innerHTML = `<div style="padding:20px;text-align:center;">No results found.</div>`;
       return;
     }
 
     currentContextList = results; 
 
     const top = results[0];
-    document.getElementById('topMatchContainer').style.display = 'block';
-    document.getElementById('topMatchCard').innerHTML = `
-      <div class="top-match-card" onclick="openTrack('${top.pid}')">
-        <img src="${top.image}">
-        <div class="info">
-          <div class="title">${top.title}</div>
-          <div class="meta">${top.artist}</div>
+    const topContainer = document.getElementById('topMatchContainer');
+    const topCard = document.getElementById('topMatchCard');
+    
+    if(topContainer && topCard) {
+      topContainer.style.display = 'block';
+      topCard.innerHTML = `
+        <div class="top-match-card" onclick="openTrack('${top.pid}')">
+          <img src="${top.image}">
+          <div class="info">
+            <div class="title">${top.title}</div>
+            <div class="meta">${top.artist}</div>
+          </div>
+          <div style="color:var(--crimson);">${svgPlay}</div>
         </div>
-        <div style="color:var(--crimson);">${svgPlay}</div>
-      </div>
-    `;
+      `;
+    }
 
-    document.getElementById('otherResultsTitle').style.display = 'block';
-    document.getElementById('resultsList').innerHTML = results.slice(1).map((r, i) => `
-      <div class="result-card" onclick="openTrack('${r.pid}')">
-        <img class="result-img" src="${r.image}" alt="Cover">
-        <div class="result-info"><div class="result-title">${r.title}</div><div class="result-meta">${r.artist}</div></div>
-        <div style="color:var(--text-muted);">${svgPlay}</div>
-      </div>
-    `).join('');
-  } catch (err) { searchSpinner.style.display = 'none'; }
+    const otherTitle = document.getElementById('otherResultsTitle');
+    const resList = document.getElementById('resultsList');
+    
+    if(otherTitle) otherTitle.style.display = 'block';
+    if(resList) {
+      resList.innerHTML = results.slice(1).map((r, i) => `
+        <div class="result-card" onclick="openTrack('${r.pid}')">
+          <img class="result-img" src="${r.image}" alt="Cover">
+          <div class="result-info"><div class="result-title">${r.title}</div><div class="result-meta">${r.artist}</div></div>
+          <div style="color:var(--text-muted);">${svgPlay}</div>
+        </div>
+      `).join('');
+    }
+  } catch (err) { 
+    if(searchSpinner) searchSpinner.style.display = 'none'; 
+  }
 }
 
-const audio = document.getElementById('audio');
+const audio = document.getElementById('audio') || new Audio();
 
 function initMediaSession() {
   if (!('mediaSession' in navigator)) return;
@@ -267,9 +320,7 @@ function initMediaSession() {
       } else { audio.currentTime = 0; }
     }],
     ['nexttrack', () => playNextSong()],
-    ['seekto', (details) => { audio.currentTime = details.seekTime; }],
-    ['seekbackward', null],
-    ['seekforward', null]
+    ['seekto', (details) => { audio.currentTime = details.seekTime; }]
   ];
 
   for (const [action, handler] of actions) {
@@ -307,7 +358,6 @@ async function openTrack(pid) {
 
     currentSongData = data;
     
-    // UPDATED: Using PID for exact song recommendations instead of language
     if (isSearchContext) {
       isSearchContext = false; 
       fetch(`/api/recommend?pid=${data.pid}`)
@@ -324,32 +374,51 @@ async function openTrack(pid) {
       renderPlayerQueue();
     }
 
-    if (document.getElementById('collectionView').classList.contains('active')) {
+    if (document.getElementById('collectionView')?.classList.contains('active')) {
       renderCollectionList(currentContextList, currentArtistToken !== '');
     }
 
-    document.getElementById('pTitle').textContent = data.title;
-    document.getElementById('pArtist').textContent = data.artist;
-    document.getElementById('pAlbum').textContent = data.album || 'Single';
-    document.getElementById('playerCover').src = data.image;
+    const els = {
+      pTitle: document.getElementById('pTitle'),
+      pArtist: document.getElementById('pArtist'),
+      pAlbum: document.getElementById('pAlbum'),
+      playerCover: document.getElementById('playerCover'),
+      mpTitle: document.getElementById('mpTitle'),
+      mpArtist: document.getElementById('mpArtist'),
+      mpCover: document.getElementById('mpCover'),
+      miniPlayer: document.getElementById('miniPlayer')
+    };
 
-    document.getElementById('mpTitle').textContent = data.title;
-    document.getElementById('mpArtist').textContent = data.artist;
-    document.getElementById('mpCover').src = data.image;
-    document.getElementById('miniPlayer').style.display = 'flex';
+    if(els.pTitle) els.pTitle.textContent = data.title;
+    if(els.pArtist) els.pArtist.textContent = data.artist;
+    if(els.pAlbum) els.pAlbum.textContent = data.album || 'Single';
+    if(els.playerCover) els.playerCover.src = data.image;
+
+    if(els.mpTitle) els.mpTitle.textContent = data.title;
+    if(els.mpArtist) els.mpArtist.textContent = data.artist;
+    if(els.mpCover) els.mpCover.src = data.image;
+    if(els.miniPlayer) els.miniPlayer.style.display = 'flex';
 
     updateMediaSessionMetadata(data);
     Router.navigate('fullPlayer', true);
 
     const safeTitle = data.title.replace(/[^\w\s.-]/g, '').trim() || 'song';
-    document.getElementById('btn320').href = `/api/download?url=${encodeURIComponent(data.links['320'])}&filename=${safeTitle}&quality=320kbps`;
-    document.getElementById('btn160').href = `/api/download?url=${encodeURIComponent(data.links['160'])}&filename=${safeTitle}&quality=160kbps`;
-    document.getElementById('btn96').href = `/api/download?url=${encodeURIComponent(data.links['96'])}&filename=${safeTitle}&quality=96kbps`;
+    const btn320 = document.getElementById('btn320');
+    const btn160 = document.getElementById('btn160');
+    const btn96 = document.getElementById('btn96');
+    
+    if(btn320) btn320.href = `/api/download?url=${encodeURIComponent(data.links['320'])}&filename=${safeTitle}&quality=320kbps`;
+    if(btn160) btn160.href = `/api/download?url=${encodeURIComponent(data.links['160'])}&filename=${safeTitle}&quality=160kbps`;
+    if(btn96) btn96.href = `/api/download?url=${encodeURIComponent(data.links['96'])}&filename=${safeTitle}&quality=96kbps`;
 
     audio.src = data.links['320'] || data.links['160'];
     audio.currentTime = 0;
-    audio.volume = document.getElementById('vol').value / 100;
-    audio.playbackRate = parseFloat(document.getElementById('speed').value);
+    
+    const vol = document.getElementById('vol');
+    if(vol) audio.volume = vol.value / 100;
+    
+    const speed = document.getElementById('speed');
+    if(speed) audio.playbackRate = parseFloat(speed.value);
     
     audio.play().then(() => setPlayState(true)).catch(() => { setPlayState(false); showToast('Tap play to start'); });
 
@@ -376,7 +445,7 @@ function renderPlayerQueue() {
     </div>
   `}).join('');
 
-  html += `<div style="padding-top: 10px;"><button class="btn-page premium-pill" onclick="extendQueue()" id="extQueueBtn" style="border-radius:8px;">LOAD MORE RELATED ↓</button></div>`;
+  html += `<div style="padding-top: 10px;"><button class="btn-page premium-pill" onclick="extendQueue()" id="extQueueBtn">LOAD MORE RELATED ↓</button></div>`;
   queueEl.innerHTML = html;
 }
 
@@ -388,7 +457,6 @@ window.extendQueue = async function() {
   if(!lastTrack) return;
 
   try {
-    // UPDATED: Using PID for recommendations
     const res = await fetch(`/api/recommend?pid=${lastTrack.pid}`);
     const newSongs = await res.json();
     
@@ -402,24 +470,28 @@ window.extendQueue = async function() {
   }
 };
 
-document.getElementById('closePlayerBtn').addEventListener('click', () => history.back());
+document.getElementById('closePlayerBtn')?.addEventListener('click', () => history.back());
 
-document.getElementById('miniPlayer').addEventListener('click', function(e) {
+document.getElementById('miniPlayer')?.addEventListener('click', function(e) {
   if (e.target.closest('#mpPlayBtn')) return;
   Router.navigate('fullPlayer', true);
 });
 
-document.getElementById('mpPlayBtn').addEventListener('click', function(e) { e.stopPropagation(); togglePlay(); });
-document.getElementById('playBtn').addEventListener('click', () => togglePlay());
+document.getElementById('mpPlayBtn')?.addEventListener('click', function(e) { e.stopPropagation(); togglePlay(); });
+document.getElementById('playBtn')?.addEventListener('click', () => togglePlay());
 
 function togglePlay() { 
   if (audio.paused && audio.src) { audio.play(); setPlayState(true); } else { audio.pause(); setPlayState(false); } 
 }
 
 function setPlayState(isPlaying) {
-  document.getElementById('playBtn').innerHTML = isPlaying ? svgPause : svgPlay;
-  document.getElementById('mpPlayBtn').innerHTML = isPlaying ? svgPause : svgPlay;
-  document.getElementById('discCover').classList.toggle('playing', isPlaying);
+  const playBtn = document.getElementById('playBtn');
+  const mpPlayBtn = document.getElementById('mpPlayBtn');
+  const discCover = document.getElementById('discCover');
+  
+  if(playBtn) playBtn.innerHTML = isPlaying ? svgPause : svgPlay;
+  if(mpPlayBtn) mpPlayBtn.innerHTML = isPlaying ? svgPause : svgPlay;
+  if(discCover) discCover.classList.toggle('playing', isPlaying);
   
   if ('mediaSession' in navigator) {
     navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
@@ -427,7 +499,7 @@ function setPlayState(isPlaying) {
   }
 }
 
-document.getElementById('prevTrackBtn').addEventListener('click', () => {
+document.getElementById('prevTrackBtn')?.addEventListener('click', () => {
   if (currentContextList.length > 0 && currentTrackIndex > 0) {
     openTrack(currentContextList[currentTrackIndex - 1].pid);
   } else {
@@ -436,7 +508,7 @@ document.getElementById('prevTrackBtn').addEventListener('click', () => {
   }
 });
 
-document.getElementById('nextTrackBtn').addEventListener('click', () => playNextSong());
+document.getElementById('nextTrackBtn')?.addEventListener('click', () => playNextSong());
 
 audio.addEventListener('play', () => setPlayState(true));
 audio.addEventListener('pause', () => setPlayState(false));
@@ -447,32 +519,34 @@ const curTime = document.getElementById('curTime');
 const durTime = document.getElementById('durTime');
 
 audio.addEventListener('loadedmetadata', () => { 
-  durTime.textContent = fmtTime(audio.duration); 
-  seek.max = audio.duration || 100; 
+  if(durTime) durTime.textContent = fmtTime(audio.duration); 
+  if(seek) seek.max = audio.duration || 100; 
   updateMediaSessionPosition();
 });
 
 audio.addEventListener('timeupdate', () => { 
-  if (!seek._dragging) seek.value = audio.currentTime; 
-  curTime.textContent = fmtTime(audio.currentTime); 
+  if (seek && !seek._dragging) seek.value = audio.currentTime; 
+  if(curTime) curTime.textContent = fmtTime(audio.currentTime); 
 });
 
-seek.addEventListener('input', () => { 
-  seek._dragging = true; 
-  curTime.textContent = fmtTime(seek.value); 
-});
+if(seek) {
+  seek.addEventListener('input', () => { 
+    seek._dragging = true; 
+    if(curTime) curTime.textContent = fmtTime(seek.value); 
+  });
 
-seek.addEventListener('change', () => { 
-  audio.currentTime = parseFloat(seek.value); 
-  seek._dragging = false; 
-  updateMediaSessionPosition(); 
-});
+  seek.addEventListener('change', () => { 
+    audio.currentTime = parseFloat(seek.value); 
+    seek._dragging = false; 
+    updateMediaSessionPosition(); 
+  });
+}
 
-document.getElementById('vol').addEventListener('input', (e) => { 
+document.getElementById('vol')?.addEventListener('input', (e) => { 
   audio.volume = e.target.value / 100; 
 });
 
-document.getElementById('speed').addEventListener('change', (e) => { 
+document.getElementById('speed')?.addEventListener('change', (e) => { 
   audio.playbackRate = parseFloat(e.target.value); 
   updateMediaSessionPosition();
 });
@@ -496,12 +570,13 @@ function saveToArchive(song) {
 function renderArchive() {
   const archive = JSON.parse(localStorage.getItem('og_archive') || '[]');
   const list = document.getElementById('archiveList');
+  if(!list) return;
   if(!archive.length) { list.innerHTML = `<div style="padding:24px;text-align:center;">No playback history.</div>`; return; }
   list.innerHTML = archive.map(r => `<div class="result-card" onclick="isSearchContext=false; currentContextList=JSON.parse(localStorage.getItem('og_archive')||'[]'); openTrack('${r.pid}')"><img class="result-img" src="${r.image}" alt="Cover"><div class="result-info"><div class="result-title">${r.title}</div><div class="result-meta">${r.artist}</div></div><div style="color:var(--text-muted);">${svgPlay}</div></div>`).join('');
 }
 
 function toggleStorage(key, btnElem, activeIcon, inactiveIcon, addMsg, removeMsg) {
-  if(!currentSongData) return;
+  if(!currentSongData || !btnElem) return;
   let items = JSON.parse(localStorage.getItem(key) || '[]');
   if(items.find(s => s.pid === currentSongData.pid)) {
     items = items.filter(s => s.pid !== currentSongData.pid);
@@ -515,40 +590,48 @@ function toggleStorage(key, btnElem, activeIcon, inactiveIcon, addMsg, removeMsg
   localStorage.setItem(key, JSON.stringify(items));
 }
 
-document.getElementById('favBtn').addEventListener('click', () => { toggleStorage('og_favorites', document.getElementById('favBtn'), svgFavActive, svgFavInactive, 'Added to Favorites', 'Removed from Favorites'); renderFavorites(); });
-document.getElementById('libBtn').addEventListener('click', () => { toggleStorage('og_library', document.getElementById('libBtn'), svgLibActive, svgLibInactive, 'Added to Library', 'Removed from Library'); renderLibrary(); });
+document.getElementById('favBtn')?.addEventListener('click', () => { toggleStorage('og_favorites', document.getElementById('favBtn'), svgFavActive, svgFavInactive, 'Added to Favorites', 'Removed from Favorites'); renderFavorites(); });
+document.getElementById('libBtn')?.addEventListener('click', () => { toggleStorage('og_library', document.getElementById('libBtn'), svgLibActive, svgLibInactive, 'Added to Library', 'Removed from Library'); renderLibrary(); });
 
 function checkActionStates(pid) {
   const favs = JSON.parse(localStorage.getItem('og_favorites') || '[]');
   const libs = JSON.parse(localStorage.getItem('og_library') || '[]');
-  const fb = document.getElementById('favBtn'); const lb = document.getElementById('libBtn');
-  if(favs.find(s => s.pid === pid)) { fb.innerHTML = svgFavActive; fb.classList.add('active'); } else { fb.innerHTML = svgFavInactive; fb.classList.remove('active'); }
-  if(libs.find(s => s.pid === pid)) { lb.innerHTML = svgLibActive; lb.classList.add('active'); } else { lb.innerHTML = svgLibInactive; lb.classList.remove('active'); }
+  const fb = document.getElementById('favBtn'); 
+  const lb = document.getElementById('libBtn');
+  if(fb) { if(favs.find(s => s.pid === pid)) { fb.innerHTML = svgFavActive; fb.classList.add('active'); } else { fb.innerHTML = svgFavInactive; fb.classList.remove('active'); } }
+  if(lb) { if(libs.find(s => s.pid === pid)) { lb.innerHTML = svgLibActive; lb.classList.add('active'); } else { lb.innerHTML = svgLibInactive; lb.classList.remove('active'); } }
 }
 
 function renderFavorites() {
   const favs = JSON.parse(localStorage.getItem('og_favorites') || '[]');
   const grid = document.getElementById('favoritesGrid');
+  if(!grid) return;
   if(!favs.length) { grid.innerHTML = `<div style="font-size:12px;color:var(--text-muted);padding:10px;">No favorites yet.</div>`; return; }
   grid.innerHTML = favs.map(i => `<div class="grid-card" onclick="isSearchContext=false; currentContextList=JSON.parse(localStorage.getItem('og_favorites')||'[]'); openTrack('${i.pid}')"><img src="${i.image}" alt="Art"><div class="grid-title">${i.title}</div></div>`).join('');
 }
 
 window.switchLibTab = function(tab) {
   document.querySelectorAll('.lib-tab').forEach(t => t.classList.remove('active'));
+  const tSongs = document.getElementById('tabSongs');
+  const tCols = document.getElementById('tabCollections');
+  const pGrid = document.getElementById('playlistGrid');
+  const sGrid = document.getElementById('savedCollectionsGrid');
+  
   if(tab === 'songs') {
-    document.getElementById('tabSongs').classList.add('active');
-    document.getElementById('playlistGrid').style.display = 'flex';
-    document.getElementById('savedCollectionsGrid').style.display = 'none';
+    if(tSongs) tSongs.classList.add('active');
+    if(pGrid) pGrid.style.display = 'flex';
+    if(sGrid) sGrid.style.display = 'none';
   } else {
-    document.getElementById('tabCollections').classList.add('active');
-    document.getElementById('playlistGrid').style.display = 'none';
-    document.getElementById('savedCollectionsGrid').style.display = 'flex';
+    if(tCols) tCols.classList.add('active');
+    if(pGrid) pGrid.style.display = 'none';
+    if(sGrid) sGrid.style.display = 'flex';
   }
 }
 
 function renderLibrary() {
   const libs = JSON.parse(localStorage.getItem('og_library') || '[]');
   const list = document.getElementById('playlistGrid');
+  if(!list) return;
   if(!libs.length) { list.innerHTML = `<div style="padding:24px;text-align:center;">No saved songs.</div>`; return; }
   list.innerHTML = libs.map(r => `<div class="result-card" onclick="isSearchContext=false; currentContextList=JSON.parse(localStorage.getItem('og_library')||'[]'); openTrack('${r.pid}')"><img class="result-img" src="${r.image}" alt="Cover"><div class="result-info"><div class="result-title">${r.title}</div><div class="result-meta">${r.artist}</div></div><div style="color:var(--text-muted);">${svgPlay}</div></div>`).join('');
 }
@@ -560,11 +643,11 @@ window.toggleCollectionSave = function() {
   
   if(cols.find(c => c.id === currentCollectionInfo.id)) {
     cols = cols.filter(c => c.id !== currentCollectionInfo.id);
-    btn.textContent = '+ Save Collection'; btn.classList.remove('saved');
+    if(btn) { btn.textContent = '+ Save Collection'; btn.classList.remove('saved'); }
     showToast('Collection Removed');
   } else {
     cols.unshift(currentCollectionInfo);
-    btn.textContent = '✓ Saved'; btn.classList.add('saved');
+    if(btn) { btn.textContent = '✓ Saved'; btn.classList.add('saved'); }
     showToast('Collection Saved');
   }
   localStorage.setItem('og_collections', JSON.stringify(cols));
@@ -575,6 +658,7 @@ function checkCollectionState() {
   if(!currentCollectionInfo) return;
   const cols = JSON.parse(localStorage.getItem('og_collections') || '[]');
   const btn = document.getElementById('saveCollectionBtn');
+  if(!btn) return;
   if(cols.find(c => c.id === currentCollectionInfo.id)) {
     btn.textContent = '✓ Saved'; btn.classList.add('saved');
   } else {
@@ -585,6 +669,7 @@ function checkCollectionState() {
 function renderSavedCollections() {
   const cols = JSON.parse(localStorage.getItem('og_collections') || '[]');
   const grid = document.getElementById('savedCollectionsGrid');
+  if(!grid) return;
   if(!cols.length) { grid.innerHTML = `<div style="padding:24px;text-align:center;">No saved collections.</div>`; return; }
   
   grid.innerHTML = cols.map(c => `
@@ -596,5 +681,11 @@ function renderSavedCollections() {
   `).join('');
 }
 
-document.getElementById('openDlModal').addEventListener('click', () => document.getElementById('dlModal').style.display = 'flex');
-document.getElementById('closeDlModal').addEventListener('click', () => document.getElementById('dlModal').style.display = 'none');
+document.getElementById('openDlModal')?.addEventListener('click', () => {
+  const el = document.getElementById('dlModal');
+  if(el) el.style.display = 'flex';
+});
+document.getElementById('closeDlModal')?.addEventListener('click', () => {
+  const el = document.getElementById('dlModal');
+  if(el) el.style.display = 'none';
+});
