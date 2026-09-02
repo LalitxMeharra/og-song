@@ -8,6 +8,14 @@ let currentArtistPage = 0;
 let isSearchContext = false;
 let currentCollectionInfo = null; 
 
+// SVG Icons for Premium UI
+const svgPlay = `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
+const svgPause = `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
+const svgFavActive = `<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>`;
+const svgFavInactive = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>`;
+const svgLibActive = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+const svgLibInactive = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>`;
+
 const Router = {
   init() {
     history.replaceState({ step: 'trap' }, '');
@@ -33,24 +41,12 @@ const Router = {
       n.classList.remove('active');
       if(n.dataset.target === viewId) n.classList.add('active');
     });
-  },
-  handleBack(e) {
-    if (document.getElementById('fullPlayer').classList.contains('open')) {
-      document.getElementById('fullPlayer').classList.remove('open');
-    } 
-    else if (e.state && e.state.view) {
-      this.switchUI(e.state.view);
-    } 
-    else if (e.state && e.state.step === 'trap') {
-      document.getElementById('exitModal').style.display = 'flex';
-      history.pushState({ step: 'home', view: 'homeView' }, '');
-    }
   }
 };
 
 window.onload = () => {
   Router.init();
-  initMediaSession(); // Initialize handlers strictly ONCE
+  initMediaSession(); 
   loadHomeData();
   renderFavorites();
   renderLibrary();
@@ -148,7 +144,7 @@ function setupCollectionHeader(title, img, subtitle) {
   document.getElementById('colImg').src = img;
   document.getElementById('colTitle').textContent = title;
   document.getElementById('colSubtitle').textContent = subtitle;
-  document.getElementById('collectionList').innerHTML = `<div style="text-align:center; padding: 40px; font-family:'Space Mono'; color:var(--crimson);">Loading Tracks...</div>`;
+  document.getElementById('collectionList').innerHTML = `<div style="text-align:center; padding: 40px; color:var(--crimson);">Loading Tracks...</div>`;
   checkCollectionState();
   Router.navigate('collectionView');
 }
@@ -157,19 +153,19 @@ function renderCollectionList(songs, isArtist) {
   let html = songs.map((r, index) => {
     const isPlaying = currentSongData && r.pid === currentSongData.pid;
     return `
-    <div class="result-card ${isPlaying ? 'active-track' : ''}" onclick="openTrack('${r.pid}')" style="border:none; border-bottom:1px dashed var(--grid-line); box-shadow:none; padding: 12px 4px; background: transparent; border-radius: 0;">
+    <div class="result-card ${isPlaying ? 'active-track' : ''}" onclick="openTrack('${r.pid}')">
       <img src="${r.image}" class="result-img">
-      <div class="result-info" style="padding-left: 10px;">
+      <div class="result-info">
         <div class="result-title">${r.title}</div>
         <div class="result-meta">${r.artist}</div>
       </div>
-      ${isPlaying ? `<div class="playing-icon" style="color:var(--crimson);">▶</div>` : `<div style="font-size:16px; color:var(--text-muted);">⚬</div>`}
+      <div style="color:var(--text-muted);">${isPlaying ? svgPause : svgPlay}</div>
     </div>
   `}).join('');
 
   if(isArtist) {
     html += `
-    <div style="display:flex; justify-content:space-between; padding: 20px 10px; gap:10px;">
+    <div style="display:flex; justify-content:space-between; padding: 20px 0; gap:10px;">
       <button class="btn-page" onclick="changeArtistPage(-1)" id="prevPageBtn" ${currentArtistPage === 0 ? 'disabled style="opacity:0.5"' : ''}>← PREV</button>
       <div style="font-size:14px; font-weight:bold; align-self:center;">PAGE ${currentArtistPage + 1}</div>
       <button class="btn-page" onclick="changeArtistPage(1)" id="nextPageBtn">NEXT →</button>
@@ -182,7 +178,7 @@ window.changeArtistPage = async function(direction) {
   currentArtistPage += direction;
   if(currentArtistPage < 0) currentArtistPage = 0;
   
-  document.getElementById('collectionList').innerHTML = `<div style="text-align:center; padding: 40px; font-family:'Space Mono'; color:var(--crimson);">Loading Page ${currentArtistPage + 1}...</div>`;
+  document.getElementById('collectionList').innerHTML = `<div style="text-align:center; padding: 40px; color:var(--crimson);">Loading Page ${currentArtistPage + 1}...</div>`;
   
   try {
     const res = await fetch(`/api/artist?token=${encodeURIComponent(currentArtistToken)}&page=${currentArtistPage}&_t=${Date.now()}`);
@@ -242,7 +238,7 @@ async function executeLiveSearch(query) {
           <div class="title">${top.title}</div>
           <div class="meta">${top.artist}</div>
         </div>
-        <div class="top-match-badge">PLAY</div>
+        <div style="color:var(--crimson);">${svgPlay}</div>
       </div>
     `;
 
@@ -251,17 +247,13 @@ async function executeLiveSearch(query) {
       <div class="result-card" onclick="openTrack('${r.pid}')">
         <img class="result-img" src="${r.image}" alt="Cover">
         <div class="result-info"><div class="result-title">${r.title}</div><div class="result-meta">${r.artist}</div></div>
-        <button class="btn-play-badge">PLAY</button>
+        <div style="color:var(--text-muted);">${svgPlay}</div>
       </div>
     `).join('');
   } catch (err) { searchSpinner.style.display = 'none'; }
 }
 
 const audio = document.getElementById('audio');
-
-// ==========================================
-// 🚨 NOTIFICATION BAR (MEDIA SESSION)
-// ==========================================
 
 function initMediaSession() {
   if (!('mediaSession' in navigator)) return;
@@ -281,11 +273,7 @@ function initMediaSession() {
   ];
 
   for (const [action, handler] of actions) {
-    try {
-      navigator.mediaSession.setActionHandler(action, handler);
-    } catch (e) {
-      console.warn(`Unsupported media action: ${action}`);
-    }
+    try { navigator.mediaSession.setActionHandler(action, handler); } catch (e) {}
   }
 }
 
@@ -294,10 +282,8 @@ function updateMediaSessionMetadata(songData) {
     navigator.mediaSession.metadata = new MediaMetadata({
       title: songData.title || 'Unknown Track',
       artist: songData.artist || 'Unknown Artist',
-      album: songData.album || 'OG-SONG DL Vault',
-      artwork: [
-        { src: songData.image.replace('150x150', '500x500'), sizes: '512x512', type: 'image/jpeg' }
-      ]
+      album: songData.album || 'FindXMusic Vault',
+      artwork: [ { src: songData.image.replace('150x150', '500x500'), sizes: '512x512', type: 'image/jpeg' } ]
     });
   }
 }
@@ -306,17 +292,11 @@ function updateMediaSessionPosition() {
   if ('mediaSession' in navigator && 'setPositionState' in navigator.mediaSession) {
     if(Number.isFinite(audio.duration) && audio.duration > 0 && Number.isFinite(audio.currentTime)) {
       try {
-        navigator.mediaSession.setPositionState({
-          duration: audio.duration,
-          playbackRate: audio.playbackRate,
-          position: audio.currentTime
-        });
+        navigator.mediaSession.setPositionState({ duration: audio.duration, playbackRate: audio.playbackRate, position: audio.currentTime });
       } catch(e) {} 
     }
   }
 }
-
-// ==========================================
 
 async function openTrack(pid) {
   showToast('Decrypting HQ Stream...');
@@ -327,9 +307,10 @@ async function openTrack(pid) {
 
     currentSongData = data;
     
+    // UPDATED: Using PID for exact song recommendations instead of language
     if (isSearchContext) {
       isSearchContext = false; 
-      fetch(`/api/recommend?lang=${data.language || 'hindi'}`)
+      fetch(`/api/recommend?pid=${data.pid}`)
         .then(r => r.json())
         .then(radioSongs => {
           if (radioSongs && radioSongs.length > 0) {
@@ -357,9 +338,7 @@ async function openTrack(pid) {
     document.getElementById('mpCover').src = data.image;
     document.getElementById('miniPlayer').style.display = 'flex';
 
-    // UPDATE PREMIUM NOTIFICATION ART & TITLE
     updateMediaSessionMetadata(data);
-
     Router.navigate('fullPlayer', true);
 
     const safeTitle = data.title.replace(/[^\w\s.-]/g, '').trim() || 'song';
@@ -387,17 +366,17 @@ function renderPlayerQueue() {
   let html = currentContextList.map((r, index) => {
     const isPlaying = index === currentTrackIndex;
     return `
-    <div class="result-card ${isPlaying ? 'active-track' : ''}" onclick="openTrack('${r.pid}')" style="border:none; border-bottom:1px dashed var(--grid-line); box-shadow:none; padding: 8px 4px; background: transparent; border-radius: 0;">
-      <img src="${r.image}" class="result-img" style="width:36px; height:36px;">
-      <div class="result-info" style="padding-left: 10px;">
-        <div class="result-title" style="${isPlaying ? 'color:var(--crimson);' : ''}">${r.title}</div>
+    <div class="result-card ${isPlaying ? 'active-track' : ''}" onclick="openTrack('${r.pid}')">
+      <img src="${r.image}" class="result-img" style="width:40px; height:40px;">
+      <div class="result-info">
+        <div class="result-title">${r.title}</div>
         <div class="result-meta">${r.artist}</div>
       </div>
-      ${isPlaying ? `<div class="playing-icon" style="color:var(--crimson);">▶</div>` : ``}
+      <div style="color:var(--text-muted);">${isPlaying ? svgPause : svgPlay}</div>
     </div>
   `}).join('');
 
-  html += `<div style="text-align:center; padding: 12px;"><button class="btn-page" onclick="extendQueue()" id="extQueueBtn" style="padding:10px; font-size:12px;">LOAD MORE RELATED ↓</button></div>`;
+  html += `<div style="padding-top: 10px;"><button class="btn-page premium-pill" onclick="extendQueue()" id="extQueueBtn" style="border-radius:8px;">LOAD MORE RELATED ↓</button></div>`;
   queueEl.innerHTML = html;
 }
 
@@ -409,7 +388,8 @@ window.extendQueue = async function() {
   if(!lastTrack) return;
 
   try {
-    const res = await fetch(`/api/recommend?lang=${lastTrack.language || 'hindi'}`);
+    // UPDATED: Using PID for recommendations
+    const res = await fetch(`/api/recommend?pid=${lastTrack.pid}`);
     const newSongs = await res.json();
     
     const existingPids = new Set(currentContextList.map(s => s.pid));
@@ -437,13 +417,12 @@ function togglePlay() {
 }
 
 function setPlayState(isPlaying) {
-  document.getElementById('playBtn').textContent = isPlaying ? '❚❚' : '▶';
-  document.getElementById('mpPlayBtn').textContent = isPlaying ? '❚❚' : '▶';
+  document.getElementById('playBtn').innerHTML = isPlaying ? svgPause : svgPlay;
+  document.getElementById('mpPlayBtn').innerHTML = isPlaying ? svgPause : svgPlay;
   document.getElementById('discCover').classList.toggle('playing', isPlaying);
   
   if ('mediaSession' in navigator) {
     navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
-    // Update position here so it stays synced when pausing/playing
     updateMediaSessionPosition();
   }
 }
@@ -476,7 +455,6 @@ audio.addEventListener('loadedmetadata', () => {
 audio.addEventListener('timeupdate', () => { 
   if (!seek._dragging) seek.value = audio.currentTime; 
   curTime.textContent = fmtTime(audio.currentTime); 
-  // Omitted updateMediaSessionPosition() here to prevent freezing the notification seekbar
 });
 
 seek.addEventListener('input', () => { 
@@ -518,8 +496,8 @@ function saveToArchive(song) {
 function renderArchive() {
   const archive = JSON.parse(localStorage.getItem('og_archive') || '[]');
   const list = document.getElementById('archiveList');
-  if(!archive.length) { list.innerHTML = `<div style="padding:24px;text-align:center;border:2px dashed var(--border-dark);">No playback history.</div>`; return; }
-  list.innerHTML = archive.map(r => `<div class="result-card" onclick="isSearchContext=false; currentContextList=JSON.parse(localStorage.getItem('og_archive')||'[]'); openTrack('${r.pid}')"><img class="result-img" src="${r.image}" alt="Cover"><div class="result-info"><div class="result-title">${r.title}</div><div class="result-meta">${r.artist}</div></div><button class="btn-play-badge">PLAY</button></div>`).join('');
+  if(!archive.length) { list.innerHTML = `<div style="padding:24px;text-align:center;">No playback history.</div>`; return; }
+  list.innerHTML = archive.map(r => `<div class="result-card" onclick="isSearchContext=false; currentContextList=JSON.parse(localStorage.getItem('og_archive')||'[]'); openTrack('${r.pid}')"><img class="result-img" src="${r.image}" alt="Cover"><div class="result-info"><div class="result-title">${r.title}</div><div class="result-meta">${r.artist}</div></div><div style="color:var(--text-muted);">${svgPlay}</div></div>`).join('');
 }
 
 function toggleStorage(key, btnElem, activeIcon, inactiveIcon, addMsg, removeMsg) {
@@ -527,25 +505,25 @@ function toggleStorage(key, btnElem, activeIcon, inactiveIcon, addMsg, removeMsg
   let items = JSON.parse(localStorage.getItem(key) || '[]');
   if(items.find(s => s.pid === currentSongData.pid)) {
     items = items.filter(s => s.pid !== currentSongData.pid);
-    btnElem.textContent = inactiveIcon; btnElem.classList.remove('active');
+    btnElem.innerHTML = inactiveIcon; btnElem.classList.remove('active');
     showToast(removeMsg);
   } else {
     items.unshift(currentSongData);
-    btnElem.textContent = activeIcon; btnElem.classList.add('active');
+    btnElem.innerHTML = activeIcon; btnElem.classList.add('active');
     showToast(addMsg);
   }
   localStorage.setItem(key, JSON.stringify(items));
 }
 
-document.getElementById('favBtn').addEventListener('click', () => { toggleStorage('og_favorites', document.getElementById('favBtn'), '♥', '♡', 'Added to Favorites ♥', 'Removed from Favorites'); renderFavorites(); });
-document.getElementById('libBtn').addEventListener('click', () => { toggleStorage('og_library', document.getElementById('libBtn'), '✓', '+', 'Added to Library ✓', 'Removed from Library'); renderLibrary(); });
+document.getElementById('favBtn').addEventListener('click', () => { toggleStorage('og_favorites', document.getElementById('favBtn'), svgFavActive, svgFavInactive, 'Added to Favorites', 'Removed from Favorites'); renderFavorites(); });
+document.getElementById('libBtn').addEventListener('click', () => { toggleStorage('og_library', document.getElementById('libBtn'), svgLibActive, svgLibInactive, 'Added to Library', 'Removed from Library'); renderLibrary(); });
 
 function checkActionStates(pid) {
   const favs = JSON.parse(localStorage.getItem('og_favorites') || '[]');
   const libs = JSON.parse(localStorage.getItem('og_library') || '[]');
   const fb = document.getElementById('favBtn'); const lb = document.getElementById('libBtn');
-  if(favs.find(s => s.pid === pid)) { fb.textContent = '♥'; fb.classList.add('active'); } else { fb.textContent = '♡'; fb.classList.remove('active'); }
-  if(libs.find(s => s.pid === pid)) { lb.textContent = '✓'; lb.classList.add('active'); } else { lb.textContent = '+'; lb.classList.remove('active'); }
+  if(favs.find(s => s.pid === pid)) { fb.innerHTML = svgFavActive; fb.classList.add('active'); } else { fb.innerHTML = svgFavInactive; fb.classList.remove('active'); }
+  if(libs.find(s => s.pid === pid)) { lb.innerHTML = svgLibActive; lb.classList.add('active'); } else { lb.innerHTML = svgLibInactive; lb.classList.remove('active'); }
 }
 
 function renderFavorites() {
@@ -571,8 +549,8 @@ window.switchLibTab = function(tab) {
 function renderLibrary() {
   const libs = JSON.parse(localStorage.getItem('og_library') || '[]');
   const list = document.getElementById('playlistGrid');
-  if(!libs.length) { list.innerHTML = `<div style="padding:24px;text-align:center;border:2px dashed var(--border-dark);">No saved songs.</div>`; return; }
-  list.innerHTML = libs.map(r => `<div class="result-card" onclick="isSearchContext=false; currentContextList=JSON.parse(localStorage.getItem('og_library')||'[]'); openTrack('${r.pid}')"><img class="result-img" src="${r.image}" alt="Cover"><div class="result-info"><div class="result-title">${r.title}</div><div class="result-meta">${r.artist}</div></div><button class="btn-play-badge">PLAY</button></div>`).join('');
+  if(!libs.length) { list.innerHTML = `<div style="padding:24px;text-align:center;">No saved songs.</div>`; return; }
+  list.innerHTML = libs.map(r => `<div class="result-card" onclick="isSearchContext=false; currentContextList=JSON.parse(localStorage.getItem('og_library')||'[]'); openTrack('${r.pid}')"><img class="result-img" src="${r.image}" alt="Cover"><div class="result-info"><div class="result-title">${r.title}</div><div class="result-meta">${r.artist}</div></div><div style="color:var(--text-muted);">${svgPlay}</div></div>`).join('');
 }
 
 window.toggleCollectionSave = function() {
@@ -607,13 +585,13 @@ function checkCollectionState() {
 function renderSavedCollections() {
   const cols = JSON.parse(localStorage.getItem('og_collections') || '[]');
   const grid = document.getElementById('savedCollectionsGrid');
-  if(!cols.length) { grid.innerHTML = `<div style="padding:24px;text-align:center;border:2px dashed var(--border-dark);">No saved collections.</div>`; return; }
+  if(!cols.length) { grid.innerHTML = `<div style="padding:24px;text-align:center;">No saved collections.</div>`; return; }
   
   grid.innerHTML = cols.map(c => `
     <div class="result-card" onclick="handleCardClick('${c.id}', '${c.type}', '${c.title.replace(/'/g, "\\'")}', '${c.img}')">
       <img class="result-img" src="${c.img}" alt="Cover">
       <div class="result-info"><div class="result-title">${c.title}</div><div class="result-meta">${c.type.toUpperCase()}</div></div>
-      <button class="btn-play-badge">OPEN</button>
+      <div style="color:var(--text-muted);">${svgPlay}</div>
     </div>
   `).join('');
 }
