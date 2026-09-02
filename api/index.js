@@ -105,7 +105,6 @@ export default async function handler(req, res) {
   const pid = req.query.pid || urlObj.searchParams.get('pid') || '';
   const action = req.query.action || urlObj.searchParams.get('action') || pathname.split('/').pop();
 
-  // Smart Headers with default cookies to prevent blocks
   const headers = {
     'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36',
     'Referer': 'https://www.jiosaavn.com/',
@@ -133,13 +132,7 @@ export default async function handler(req, res) {
         { id: "uGdfg6zGf4s_", title: "Jubin Nautiyal", image: "https://c.saavncdn.com/artists/Jubin_Nautiyal_003_20231130204020_500x500.jpg", type: "artist" },
         { id: "FCtl69DObYg_", title: "Lata Mangeshkar", image: "https://c.saavncdn.com/artists/Lata_Mangeshkar_004_20230623105323_500x500.jpg", type: "artist" },
         { id: "uqRkqsl4ZnQ_", title: "Alka Yagnik", image: "https://c.saavncdn.com/artists/Alka_Yagnik_002_20220314192930_500x500.jpg", type: "artist" },
-        { id: "kLtmb7Vh8Rs_", title: "Udit Narayan", image: "https://c.saavncdn.com/artists/Udit_Narayan_004_20241029065120_500x500.jpg", type: "artist" },
-        { id: ",oJF4SH3MmE_", title: "Amit Saini Rohtakiya", image: "https://c.saavncdn.com/artists/Amit_Saini_Rohtakiya_003_20260410063653_500x500.jpg", type: "artist" },
-        { id: "yMoPyl3ZzyY_", title: "Kishore Kumar", image: "https://c.saavncdn.com/artists/Kishore_Kumar_500x500.jpg", type: "artist" },
-        { id: "N,m6H0-rqiY_", title: "Himesh Reshammiya", image: "https://c.saavncdn.com/artists/Himesh_Reshammiya_500x500.jpg", type: "artist" },
-        { id: "c22-wW-by-E_", title: "Amanraj Gill", image: "https://c.saavncdn.com/artists/Amanraj_Gill_20191130140635_500x500.jpg", type: "artist" },
-        { id: "lIHlwHaxTZ0_", title: "Shreya Ghoshal", image: "https://c.saavncdn.com/artists/Shreya_Ghoshal_007_20241101074144_500x500.jpg", type: "artist" },
-        { id: "0K3gBYoafew_", title: "Anuv Jain", image: "https://c.saavncdn.com/artists/Anuv_Jain_001_20231206073013_500x500.jpg", type: "artist" }
+        { id: "kLtmb7Vh8Rs_", title: "Udit Narayan", image: "https://c.saavncdn.com/artists/Udit_Narayan_004_20241029065120_500x500.jpg", type: "artist" }
       ];
 
       const normalize = (arr) => (arr || []).map(item => ({
@@ -182,7 +175,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ results: Array.from(resultsMap.values()) });
     }
 
-    // 3. ARTIST TOP SONGS API (With 50-Song Pagination)
+    // 3. ARTIST TOP SONGS API
     if (action === 'artist' || pathname.includes('/artist')) {
       const token = req.query.token || urlObj.searchParams.get('token');
       const page = parseInt(req.query.page || '0', 10);
@@ -253,7 +246,7 @@ export default async function handler(req, res) {
         title: cleanText(songData.song || songData.title),
         artist: cleanText(songData.primary_artists || songData.more_info?.primary_artists),
         album: cleanText(songData.album || songData.more_info?.album),
-        language: songData.language || 'hindi', // 🚨 For Autoplay Context
+        language: songData.language || 'hindi',
         image: (songData.image || songData.more_info?.image || '').replace('50x50', '500x500').replace('150x150', '500x500'),
         links: {
           '320': `${basePrefix}_320.${ext}`,
@@ -263,10 +256,12 @@ export default async function handler(req, res) {
       });
     }
 
-    // 4.5 SMART RADIO API (TRENDING BY LANGUAGE)
+    // 4.5 SMART RADIO API (SIMILAR SONGS BY ARTIST & VIBE)
     if (action === 'recommend' || pathname.includes('/recommend')) {
-      const lang = req.query.lang || urlObj.searchParams.get('lang') || 'hindi';
-      const recoUrl = `https://www.jiosaavn.com/api.php?__call=content.getTrending&api_version=4&_format=json&_marker=0&ctx=wap6dot0&entity_type=song&entity_language=${encodeURIComponent(lang)}`;
+      const targetPid = req.query.pid || urlObj.searchParams.get('pid');
+      if (!targetPid) return res.status(400).json({ error: 'Missing song pid' });
+
+      const recoUrl = `https://www.jiosaavn.com/api.php?__call=reco.getreco&api_version=4&_format=json&_marker=0&pid=${encodeURIComponent(targetPid)}`;
       
       const data = await safeFetchJSON(recoUrl, { headers });
       if (!data || !Array.isArray(data)) return res.status(404).json({ error: 'No recommendations found' });
