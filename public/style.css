@@ -260,9 +260,15 @@ body::after {
 .state-msg.error { color: var(--ember-soft); font-weight: 600; }
 .page-indicator { font-size: 14px; font-weight: 800; align-self: center; letter-spacing: 0.4px; }
 
-/* Inline spinner shown next to the search box while a query is in flight */
+/* #searchSpinner holds a text label ("Searching the vault...") — only the
+   ring (::before) should spin, never the element itself or its text */
 #searchSpinner {
-  width: 22px; height: 22px; border-radius: 50%; margin: 18px auto;
+  text-align: center; padding: 22px 0; font-size: 13px; font-weight: 600;
+  color: var(--amber-soft); letter-spacing: 0.4px;
+}
+#searchSpinner::before {
+  content: ''; display: inline-block; vertical-align: -3px; margin-right: 10px;
+  width: 15px; height: 15px; border-radius: 50%;
   border: 2.5px solid rgba(255, 45, 71, 0.18);
   border-top-color: var(--ember); border-right-color: var(--amber);
   animation: spin 0.7s linear infinite;
@@ -484,13 +490,18 @@ body::after {
 
 .premium-footer {
   position: relative; overflow: hidden;
-  background: linear-gradient(180deg, transparent 0%, rgba(140,13,30,0.1) 35%, var(--bg-deep) 100%), var(--bg-void);
-  padding: 46px 20px 100px; text-align: center; border-top: 1px solid var(--border-dark);
+  margin: 0 20px calc(90px + env(safe-area-inset-bottom, 0px));
+  padding: 40px 22px 34px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-dark);
+  background: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, transparent 55%), var(--bg-surface-solid);
+  box-shadow: 0 1px 0 var(--glass-edge) inset, 0 20px 46px rgba(0,0,0,0.5);
+  text-align: center;
 }
 .premium-footer::before {
   content: ''; position: absolute; top: -60px; left: 50%; transform: translateX(-50%);
-  width: 160%; height: 240px; pointer-events: none;
-  background: radial-gradient(circle, rgba(255, 45, 71, 0.18) 0%, transparent 70%);
+  width: 160%; height: 220px; pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 45, 71, 0.16) 0%, transparent 70%);
 }
 .f-brand { font-family: 'Cinzel', serif; font-size: 20px; font-weight: 900; margin-bottom: 8px; letter-spacing: 1px; }
 .f-brand span { background: var(--brand-gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }

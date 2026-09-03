@@ -283,6 +283,7 @@ if(qInput) {
       if(topContainer) topContainer.style.display = 'none';
       if(otherTitle) otherTitle.style.display = 'none';
       if(resList) resList.innerHTML = '';
+      if(searchSpinner) searchSpinner.style.display = 'none';
       if(exploreArtistTitle) exploreArtistTitle.style.display = 'flex';
       if(artistsGridExplore) artistsGridExplore.style.display = 'flex';
       return;
@@ -360,7 +361,7 @@ function initMediaSession() {
       else audio.currentTime = 0; 
     }],
     ['nexttrack', function() { playNextSong(); }],
-    ['seekto', function(details) { audio.currentTime = details.seekTime; }]
+    ['seekto', function(details) { audio.currentTime = details.seekTime; updateMediaSessionPosition(); }]
   ];
   for (let i = 0; i < actions.length; i++) {
     try { navigator.mediaSession.setActionHandler(actions[i][0], actions[i][1]); } catch (e) {}
