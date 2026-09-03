@@ -169,11 +169,11 @@ window.handleCardClick = async function(id, type, title, img) {
         currentContextList = data.topSongs; 
         renderCollectionList(currentContextList, true);
       } else {
-        if(colList) colList.innerHTML = `<div style="text-align:center; padding: 20px;">No tracks found.</div>`;
+        if(colList) colList.innerHTML = `<div class="state-empty">No tracks found.</div>`;
       }
     } catch(err) {
       const colList = document.getElementById('collectionList');
-      if(colList) colList.innerHTML = `<div style="text-align:center; padding: 20px; color:var(--crimson);">Error loading artist.</div>`;
+      if(colList) colList.innerHTML = `<div class="state-msg error">Error loading artist.</div>`;
     }
   } else {
     isSearchContext = false;
@@ -189,11 +189,11 @@ window.handleCardClick = async function(id, type, title, img) {
         currentContextList = data.results; 
         renderCollectionList(currentContextList, false);
       } else {
-        if(colList) colList.innerHTML = `<div style="text-align:center; padding: 20px;">No tracks found.</div>`;
+        if(colList) colList.innerHTML = `<div class="state-empty">No tracks found.</div>`;
       }
     } catch(err) {
       const colList = document.getElementById('collectionList');
-      if(colList) colList.innerHTML = `<div style="text-align:center; padding: 20px; color:var(--crimson);">Error loading collection.</div>`;
+      if(colList) colList.innerHTML = `<div class="state-msg error">Error loading collection.</div>`;
     }
   }
 };
@@ -207,7 +207,7 @@ function setupCollectionHeader(title, img, subtitle) {
   if(colImg) colImg.src = img;
   if(colTitle) colTitle.textContent = title;
   if(colSub) colSub.textContent = subtitle;
-  if(colList) colList.innerHTML = `<div style="text-align:center; padding: 40px; color:var(--crimson);">Loading Tracks...</div>`;
+  if(colList) colList.innerHTML = `<div class="state-msg loading">Loading Tracks...</div>`;
   
   checkCollectionState();
   Router.navigate('collectionView');
@@ -228,11 +228,11 @@ function renderCollectionList(songs, isArtist) {
   `}).join('');
 
   if(isArtist) {
-    const disabledStyle = currentArtistPage === 0 ? 'disabled style="opacity:0.5"' : '';
+    const disabledStyle = currentArtistPage === 0 ? 'disabled' : '';
     html += `
     <div style="display:flex; justify-content:space-between; padding: 20px 0; gap:10px;">
       <button class="btn-page premium-pill" onclick="changeArtistPage(-1)" id="prevPageBtn" ${disabledStyle}>← PREV</button>
-      <div style="font-size:14px; font-weight:bold; align-self:center;">PAGE ${currentArtistPage + 1}</div>
+      <div class="page-indicator">PAGE ${currentArtistPage + 1}</div>
       <button class="btn-page premium-pill" onclick="changeArtistPage(1)" id="nextPageBtn">NEXT →</button>
     </div>`;
   }
@@ -245,7 +245,7 @@ window.changeArtistPage = async function(direction) {
   if(currentArtistPage < 0) currentArtistPage = 0;
   
   const colList = document.getElementById('collectionList');
-  if(colList) colList.innerHTML = `<div style="text-align:center; padding: 40px; color:var(--crimson);">Loading Page ${currentArtistPage + 1}...</div>`;
+  if(colList) colList.innerHTML = `<div class="state-msg loading">Loading Page ${currentArtistPage + 1}...</div>`;
   
   try {
     const res = await fetch(`/api/artist?token=${encodeURIComponent(currentArtistToken)}&page=${currentArtistPage}&_t=${Date.now()}`);
@@ -254,11 +254,11 @@ window.changeArtistPage = async function(direction) {
       currentContextList = data.topSongs; 
       renderCollectionList(currentContextList, true);
     } else {
-      if(colList) colList.innerHTML = `<div style="text-align:center; padding: 20px;">No more tracks on this page.</div>
+      if(colList) colList.innerHTML = `<div class="state-empty">No more tracks on this page.</div>
       <button class="btn-page premium-pill" onclick="changeArtistPage(-1)">← GO BACK</button>`;
     }
   } catch(err) {
-    if(colList) colList.innerHTML = `<div style="text-align:center; padding: 20px; color:var(--crimson);">Error loading page.</div>`;
+    if(colList) colList.innerHTML = `<div class="state-msg error">Error loading page.</div>`;
   }
 };
 
@@ -309,7 +309,7 @@ async function executeLiveSearch(query) {
 
     if(!results.length) {
       if(topContainer) topContainer.style.display = 'none';
-      if(resList) resList.innerHTML = `<div style="padding:20px;text-align:center;">No results found.</div>`;
+      if(resList) resList.innerHTML = `<div class="state-empty">No results found.</div>`;
       return;
     }
 
@@ -615,7 +615,7 @@ function renderArchive() {
   const archive = JSON.parse(localStorage.getItem('og_archive') || '[]');
   const list = document.getElementById('archiveList');
   if(!list) return;
-  if(!archive.length) { list.innerHTML = `<div style="padding:24px;text-align:center;">No playback history.</div>`; return; }
+  if(!archive.length) { list.innerHTML = `<div class="state-empty">No playback history.</div>`; return; }
   list.innerHTML = archive.map(function(r) { return `<div class="result-card" onclick="isSearchContext=false; currentContextList=JSON.parse(localStorage.getItem('og_archive')||'[]'); openTrack('${r.pid}')"><img class="result-img" src="${r.image}" alt="Cover"><div class="result-info"><div class="result-title">${r.title}</div><div class="result-meta">${r.artist}</div></div><div style="color:var(--text-muted);">${svgPlay}</div></div>`; }).join('');
 }
 
@@ -653,7 +653,7 @@ function renderFavorites() {
   const favs = JSON.parse(localStorage.getItem('og_favorites') || '[]');
   const grid = document.getElementById('favoritesGrid');
   if(!grid) return;
-  if(!favs.length) { grid.innerHTML = `<div style="font-size:12px;color:var(--text-muted);padding:10px;">No favorites yet.</div>`; return; }
+  if(!favs.length) { grid.innerHTML = `<div class="state-empty">No favorites yet.</div>`; return; }
   grid.innerHTML = favs.map(function(i) { return `<div class="grid-card" onclick="isSearchContext=false; currentContextList=JSON.parse(localStorage.getItem('og_favorites')||'[]'); openTrack('${i.pid}')"><img src="${i.image}" alt="Art"><div class="grid-title">${i.title}</div></div>`; }).join('');
 }
 
@@ -679,7 +679,7 @@ function renderLibrary() {
   const libs = JSON.parse(localStorage.getItem('og_library') || '[]');
   const list = document.getElementById('playlistGrid');
   if(!list) return;
-  if(!libs.length) { list.innerHTML = `<div style="padding:24px;text-align:center;">No saved songs.</div>`; return; }
+  if(!libs.length) { list.innerHTML = `<div class="state-empty">No saved songs.</div>`; return; }
   list.innerHTML = libs.map(function(r) { return `<div class="result-card" onclick="isSearchContext=false; currentContextList=JSON.parse(localStorage.getItem('og_library')||'[]'); openTrack('${r.pid}')"><img class="result-img" src="${r.image}" alt="Cover"><div class="result-info"><div class="result-title">${r.title}</div><div class="result-meta">${r.artist}</div></div><div style="color:var(--text-muted);">${svgPlay}</div></div>`; }).join('');
 }
 
@@ -717,7 +717,7 @@ function renderSavedCollections() {
   const cols = JSON.parse(localStorage.getItem('og_collections') || '[]');
   const grid = document.getElementById('savedCollectionsGrid');
   if(!grid) return;
-  if(!cols.length) { grid.innerHTML = `<div style="padding:24px;text-align:center;">No saved collections.</div>`; return; }
+  if(!cols.length) { grid.innerHTML = `<div class="state-empty">No saved collections.</div>`; return; }
   
   grid.innerHTML = cols.map(function(c) { return `
     <div class="result-card" onclick="handleCardClick('${c.id}', '${c.type}', '${c.title.replace(/'/g, "\\'")}', '${c.img}')">
