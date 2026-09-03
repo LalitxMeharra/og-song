@@ -563,25 +563,36 @@ const seek = document.getElementById('seek');
 const curTime = document.getElementById('curTime');
 const durTime = document.getElementById('durTime');
 
+function updateSeekFill() {
+  if (!seek) return;
+  const max = parseFloat(seek.max) || 100;
+  const val = parseFloat(seek.value) || 0;
+  const pct = max > 0 ? (val / max) * 100 : 0;
+  seek.style.setProperty('--progress', pct + '%');
+}
+
 audio.addEventListener('loadedmetadata', function() { 
   if(durTime) durTime.textContent = fmtTime(audio.duration); 
   if(seek) seek.max = audio.duration || 100; 
+  updateSeekFill();
   updateMediaSessionPosition();
 });
 
 audio.addEventListener('timeupdate', function() { 
-  if (seek && !seek._dragging) seek.value = audio.currentTime; 
+  if (seek && !seek._dragging) { seek.value = audio.currentTime; updateSeekFill(); }
   if(curTime) curTime.textContent = fmtTime(audio.currentTime); 
 });
 
 if(seek) {
   seek.addEventListener('input', function() { 
     seek._dragging = true; 
+    updateSeekFill();
     if(curTime) curTime.textContent = fmtTime(seek.value); 
   });
   seek.addEventListener('change', function() { 
     audio.currentTime = parseFloat(seek.value); 
     seek._dragging = false; 
+    updateSeekFill();
     updateMediaSessionPosition(); 
   });
 }
